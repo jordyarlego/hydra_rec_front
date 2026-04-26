@@ -1,0 +1,22 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+
+# Vite cache
+.vite/
+
+# Variáveis de ambiente (nunca commitar chaves)
+.env
+.env.local
+.env.*.local
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
