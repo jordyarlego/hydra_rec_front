@@ -928,7 +928,7 @@ select option { background: #0f1118; color: #fff; }
 .live-clock.compact .live-clock-date { font-size: 9px; }
 
 .map-fab {
-  position: absolute; bottom: 24px; right: 24px;
+  position: absolute; bottom: 80px; right: 16px;
   z-index: 800;
   width: 54px; height: 54px;
   border-radius: 50%;
@@ -1097,6 +1097,11 @@ select option { background: #0f1118; color: #fff; }
   }
   .live-clock-time { font-size: 18px; }
   .live-clock-date { font-size: 9px; }
+  .map-fab,
+  .map-fab-extended {
+    bottom: 80px;
+    right: 12px;
+  }
 }
 
 

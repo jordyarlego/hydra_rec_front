@@ -32,19 +32,21 @@ export function ChipsBar({ current, risk, light = false }) {
   const rawValues = risk?.rawValues || risk?.raw_values || {}
 
   const uv       = Math.round(rawValues.uvIndex ?? current.uv_index ?? 0)
-  const pressao  = Math.round(rawValues.pressao ?? current.surface_pressure ?? 1013)
+  const umidade  = Math.round(current.relative_humidity_2m ?? 0)
   const vis      = visFromCode(current.weather_code)
   const mare     = rawValues.mareAltura ?? rawValues.mare_altura ?? 1.5
-  const soil     = Math.round((rawValues.saturacaoSolo ?? 0) * 100)
   const vento    = Math.round(current.wind_speed_10m ?? 0)
+
+  const umidadeLabel = umidade >= 80 ? 'Muito úmido' : umidade >= 60 ? 'Úmido' : umidade >= 40 ? 'Agradável' : 'Seco'
+  const umidadeColor = umidade >= 80 ? '#38bdf8' : umidade >= 60 ? '#60a5fa' : umidade >= 40 ? '#22c55e' : '#f97316'
 
   return (
     <div className="chips-bar scroll-x" aria-label="Resumo meteorológico">
-      <MetricChip label="Sol / Queimadura" value={`${uvLabel(uv)} (UV ${uv})`} color={uvColor(uv)} light={light} />
-      <MetricChip label="Pressão do ar"    value={`${pressao} hPa`} light={light} />
-      <MetricChip label="Alcance visual"   value={`${vis} km`} light={light} />
-      <MetricChip label="Nível do mar"     value={`${mare}m`} light={light} />
-      <MetricChip label="Vento"            value={`${vento} km/h`} light={light} />
+      <MetricChip label="Risco de queimadura" value={`${uvLabel(uv)} (UV ${uv})`} color={uvColor(uv)} light={light} />
+      <MetricChip label="Umidade do ar"       value={`${umidade}% · ${umidadeLabel}`} color={umidadeColor} light={light} />
+      <MetricChip label="Visibilidade"        value={`${vis} km`} light={light} />
+      <MetricChip label="Nível do mar"        value={`${mare}m`} light={light} />
+      <MetricChip label="Vento"               value={`${vento} km/h`} light={light} />
     </div>
   )
 }

@@ -71,8 +71,14 @@ export function HeroCard({ bairro, condition, current, risk, light = false }) {
           <div style={{ color: tc3 }}>Rajadas {rajada} km/h</div>
         </div>
         <div className="hero-precip" style={{ textAlign: 'right' }}>
-          <div style={{ color: acc }}>{precip.toFixed(1)}</div>
-          <div style={{ color: tc3 }}>mm/h</div>
+          {precip > 0 ? (
+            <>
+              <div style={{ color: acc }}>{precip.toFixed(1)}</div>
+              <div style={{ color: tc3 }}>mm/h</div>
+            </>
+          ) : (
+            <div style={{ color: tc3, fontSize: '11px' }}>Sem chuva</div>
+          )}
         </div>
       </div>
     </div>

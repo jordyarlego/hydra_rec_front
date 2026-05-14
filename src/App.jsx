@@ -16,6 +16,23 @@ import './styles/app.css'
 
 const FALLBACK_COORDS = [-8.1195, -34.9008]
 
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+function nearestBairro(lat, lon) {
+  let best = 'Boa Viagem', bestDist = Infinity
+  for (const [name, coords] of Object.entries(BAIRRO_COORDS)) {
+    const d = haversineKm(lat, lon, coords[0], coords[1])
+    if (d < bestDist) { bestDist = d; best = name }
+  }
+  return best
+}
+
 export default function App() {
   const { theme, toggle: toggleTheme } = useTheme()
   const isLight = theme === 'light'
@@ -37,6 +54,16 @@ export default function App() {
   /* ── Derive condition/theme from weather code ── */
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
   const theme_cfg = CONDITION_THEME[condition] || CONDITION_THEME['Ensolarado']
+
+  /* ── Geolocalização: bairro mais próximo ao abrir ── */
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setBairro(nearestBairro(pos.coords.latitude, pos.coords.longitude)),
+      () => {},
+      { timeout: 5000, maximumAge: 60000 }
+    )
+  }, [])
 
   /* ── Resize ── */
   useEffect(() => {
