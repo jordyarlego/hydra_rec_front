@@ -1,5 +1,6 @@
 import { ScoreRing } from '../risk/ScoreRing.jsx'
 import { WindCompass } from './WindCompass.jsx'
+import { AtmosphericBg } from '../effects/AtmosphericBg.jsx'
 
 /* ════════════════════════════════════════════════════
    HeroCard — cabeçalho do bairro com temp gigante + score
@@ -11,7 +12,7 @@ import { WindCompass } from './WindCompass.jsx'
      rawValues   risk.rawValues
    ════════════════════════════════════════════════════ */
 
-export function HeroCard({ bairro, condition, current, risk, light = false }) {
+export function HeroCard({ bairro, condition, current, risk, light = false, onExplain }) {
   if (!current || !risk) return null
 
   const temp     = Math.round(current.temperature_2m ?? 0)
@@ -31,6 +32,8 @@ export function HeroCard({ bairro, condition, current, risk, light = false }) {
 
   return (
     <div className="hero-card fade-in" key={`${bairro}-hero`}>
+      <AtmosphericBg condition={condition} light={light} />
+
       {/* City line */}
       <div className="hero-city" style={{ color: tc3 }}>
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={tc3} strokeWidth="1.8" aria-hidden="true">
@@ -57,6 +60,18 @@ export function HeroCard({ bairro, condition, current, risk, light = false }) {
         <div className="hero-ring">
           <ScoreRing risk={risk} light={light} size={76} />
           <div className="hero-ring-label" style={{ color: tc3 }}>Hydra Score</div>
+          {onExplain && (
+            <button
+              type="button"
+              className="score-why-btn"
+              onClick={onExplain}
+              title="Por que esse score?"
+              aria-label="Explicar pontuação"
+              style={{ color: tc3 }}
+            >
+              Por que?
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useExplain } from '../../hooks/useExplain.js'
+import { ScoreExplain } from '../risk/ScoreExplain.jsx'
 import { BairroSearch } from '../common/BairroSearch.jsx'
 import { IconBtn } from '../common/IconBtn.jsx'
 import { HydraLogo } from '../effects/HydraLogo.jsx'
@@ -63,6 +65,7 @@ export function Sidebar({
   mobile, onClose,
 }) {
   const [tab, setTab] = useState('ia')
+  const explain = useExplain()
 
   /* Derive a UI-friendly condition label */
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
@@ -170,6 +173,14 @@ export function Sidebar({
   return (
     <div className="sidebar-wrap">
       {header}
+      <ScoreExplain
+        open={explain.open}
+        loading={explain.loading}
+        text={explain.text}
+        error={explain.error}
+        onClose={explain.close}
+        light={light}
+      />
       <div className="sidebar-scroll scroll-y">
         <div className="sidebar-content">
 
@@ -181,6 +192,7 @@ export function Sidebar({
             current={data.weather?.current}
             risk={data.risk}
             light={light}
+            onExplain={() => { soundMgr.playClick(); explain.explain(bairro) }}
           />
 
           <AlertBanner risk={data.risk} bairro={bairro} />
