@@ -1,92 +1,81 @@
 import { useState, useRef, useEffect } from 'react'
 import { BAIRROS } from '../../data/bairros.js'
+import { soundMgr } from '../../lib/soundManager.js'
+
+/* ════════════════════════════════════════════════════
+   BairroSearch — autocomplete de bairro do Recife
+   Mantém a mesma API do componente anterior:
+     <BairroSearch value={bairro} onChange={setBairro} />
+   ════════════════════════════════════════════════════ */
 
 function normalize(s) {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-export function BairroSearch({ value, onChange, placeholder = 'Buscar bairro…' }) {
-  const [query, setQuery] = useState(value || '')
-  const [open, setOpen] = useState(false)
+export function BairroSearch({ value, onChange, placeholder = 'Buscar bairro...' }) {
+  const [query, setQuery]     = useState('')
+  const [open, setOpen]       = useState(false)
   const [focused, setFocused] = useState(0)
-  const inputRef = useRef(null)
-  const listRef = useRef(null)
+  const ref       = useRef(null)
+  const inputRef  = useRef(null)
 
   const matches = query.length >= 1
     ? BAIRROS.filter(b => normalize(b).includes(normalize(query))).slice(0, 8)
     : []
 
-  function select(bairro) {
-    setQuery(bairro)
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  function select(b) {
+    setQuery('')
     setOpen(false)
-    onChange(bairro)
+    soundMgr.playClick()
+    onChange(b)
   }
 
   function handleKey(e) {
     if (!open || !matches.length) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setFocused(f => Math.min(f + 1, matches.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setFocused(f => Math.max(f - 1, 0))
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      if (matches[focused]) select(matches[focused])
-    } else if (e.key === 'Escape') {
-      setOpen(false)
-    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setFocused(f => Math.min(f + 1, matches.length - 1)) }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); setFocused(f => Math.max(f - 1, 0)) }
+    else if (e.key === 'Enter')     { e.preventDefault(); if (matches[focused]) select(matches[focused]) }
+    else if (e.key === 'Escape')    { setOpen(false) }
   }
 
-  // Sync quando valor externo muda
-  useEffect(() => { if (value !== query) setQuery(value || '') }, [value])
-
-  // Fecha ao clicar fora
-  useEffect(() => {
-    function handleClick(e) {
-      if (!inputRef.current?.closest('.bairro-search')?.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
   return (
-    <div className="bairro-search" role="combobox" aria-expanded={open} aria-haspopup="listbox">
+    <div className="bairro-search" ref={ref} role="combobox" aria-expanded={open} aria-haspopup="listbox">
       <div className="bairro-search-input-wrap">
-        <svg className="search-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
-          <path d="m10 10 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <svg className="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <input
           ref={inputRef}
           type="text"
           className="bairro-search-input"
           value={query}
-          placeholder={placeholder}
+          placeholder={value || placeholder}
           aria-label="Buscar bairro de Recife"
           aria-autocomplete="list"
-          aria-controls="bairro-search-list"
           onChange={e => { setQuery(e.target.value); setOpen(true); setFocused(0) }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKey}
         />
         {query && (
           <button
+            type="button"
             className="search-clear"
             onClick={() => { setQuery(''); inputRef.current?.focus(); setOpen(false) }}
             aria-label="Limpar busca"
-            type="button"
-          >✕</button>
+          >
+            ✕
+          </button>
         )}
       </div>
       {open && matches.length > 0 && (
-        <ul
-          id="bairro-search-list"
-          ref={listRef}
-          className="bairro-search-list"
-          role="listbox"
-          aria-label="Bairros de Recife"
-        >
+        <ul className="bairro-search-list" role="listbox" aria-label="Bairros de Recife">
           {matches.map((b, i) => (
             <li
               key={b}
@@ -96,7 +85,10 @@ export function BairroSearch({ value, onChange, placeholder = 'Buscar bairro…'
               onMouseDown={() => select(b)}
               onMouseEnter={() => setFocused(i)}
             >
-              <span className="option-pin">📍</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#e8a030" strokeWidth="2" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
               {b}
             </li>
           ))}

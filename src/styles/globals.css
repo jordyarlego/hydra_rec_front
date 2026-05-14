@@ -1,135 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
-@import './tokens.css';
-
 /* ════════════════════════════════════════════════════
-   HydraRec · Paleta Weather App Premium
+   HydraRec v2 — globals.css
+   Carrega fontes + tokens base.
+   (Tema escuro/claro completo agora vive em app.css.)
    ════════════════════════════════════════════════════ */
 
-/* ── TEMA ESCURO ── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&display=swap');
+@import './tokens.css';
+
+/* ── TEMA ESCURO (default) ── */
 :root, [data-theme="dark"] {
-  /* Céu noturno profundo */
-  --bg-deep:  #080e1c;
-  --bg-mid:   #0b1220;
-
-  /* Cards sólidos — contraste real contra o fundo */
-  --card-bg:     #0f1829;
-  --card-raised: #132032;
-  --card-border: rgba(255, 255, 255, 0.08);
-  --card-shine:  inset 0 1px 0 rgba(255, 255, 255, 0.05);
-
-  /* Compat */
-  --bg-base:    var(--bg-deep);
-  --bg-surface: var(--card-bg);
-  --bg-raised:  var(--card-raised);
-  --bg-overlay: #192840;
-  --glass-card:   var(--card-bg);
-  --glass-raised: var(--card-raised);
-  --glass-border: var(--card-border);
-  --glass-shine:  var(--card-shine);
-
-  /* Texto — contraste alto */
+  --bg-deep:  #0d0e11;
+  --bg-mid:   #111520;
   --text-primary:   #ffffff;
-  --text-secondary: rgba(185, 215, 255, 0.88);
-  --text-muted:     rgba(120, 165, 220, 0.60);
-
-  /* Bordas */
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-base:   rgba(255, 255, 255, 0.12);
-
-  /* Acento laranja (marca) */
-  --accent:       #ff9500;
-  --accent-hover: #ffb340;
-  --accent-dim:   rgba(255, 149, 0, 0.15);
-
-  /* Clima */
-  --sky:  #64d2ff;
-  --rain: #5aafff;
-  --warm: #ffd60a;
-
-  /* Risco */
-  --risk-seguro:   #30d158;
-  --risk-atencao:  #ffd60a;
-  --risk-moderado: #ff9500;
-  --risk-alto:     #ff453a;
-  --risk-severo:   #bf5af2;
-
-  /* Confiança */
-  --confidence-alta:  #30d158;
-  --confidence-media: #ffd60a;
-  --confidence-baixa: #ff453a;
+  --text-secondary: rgba(255,255,255,.65);
+  --text-muted:     rgba(255,255,255,.4);
+  --border-subtle:  rgba(255,255,255,.07);
+  --border-base:    rgba(255,255,255,.12);
+  --accent:         #e8a030;
+  --accent-hover:   #f5b347;
+  --accent-dim:     rgba(232,160,48,.15);
+  --risk-seguro:    #22c55e;
+  --risk-atencao:   #eab308;
+  --risk-moderado:  #f97316;
+  --risk-alto:      #ef4444;
+  --risk-severo:    #a855f7;
 }
 
 /* ── TEMA CLARO ── */
 [data-theme="light"] {
-  --bg-deep: #b8d4f0;
-  --bg-mid:  #cce0f8;
-
-  --card-bg:     rgba(255, 255, 255, 0.88);
-  --card-raised: rgba(240, 248, 255, 0.80);
-  --card-border: rgba(30, 80, 180, 0.12);
-  --card-shine:  inset 0 1px 0 rgba(255, 255, 255, 0.90);
-
-  --bg-base:    var(--bg-deep);
-  --bg-surface: var(--card-bg);
-  --bg-raised:  var(--card-raised);
-  --glass-card:   var(--card-bg);
-  --glass-raised: var(--card-raised);
-  --glass-border: var(--card-border);
-  --glass-shine:  var(--card-shine);
-
-  --text-primary:   #07162a;
-  --text-secondary: #1a3c72;
-  --text-muted:     #4870a8;
-
-  --border-subtle: rgba(15, 45, 120, 0.09);
-  --border-base:   rgba(15, 45, 120, 0.16);
-
-  --accent:       #bf5a00;
-  --accent-hover: #9e4a00;
-  --accent-dim:   rgba(191, 90, 0, 0.12);
-
-  --sky:  #0072cf;
-  --rain: #1d4ed8;
-  --warm: #d97706;
-
-  --risk-seguro:   #1a8a3c;
-  --risk-atencao:  #b07800;
-  --risk-moderado: #c04800;
-  --risk-alto:     #cc1a14;
-  --risk-severo:   #8820c8;
-
-  --confidence-alta:  #1a8a3c;
-  --confidence-media: #b07800;
-  --confidence-baixa: #cc1a14;
+  --bg-deep: #e8e1d2;
+  --bg-mid:  #f0ebde;
+  --text-primary:   #0d0e11;
+  --text-secondary: rgba(0,0,0,.65);
+  --text-muted:     rgba(0,0,0,.4);
+  --border-subtle:  rgba(0,0,0,.07);
+  --border-base:    rgba(0,0,0,.12);
+  --accent:         #c97820;
+  --accent-hover:   #ad6515;
+  --accent-dim:     rgba(201,120,32,.12);
 }
 
-/* ── RESET & BASE ── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+/* ── Reset mínimo (o pesado vive em app.css) ── */
 html, body, #root { height: 100%; overflow: hidden; }
-
 body {
   font-family: var(--font-main);
-  font-size: var(--text-base);
-  color: var(--text-primary);
   background: var(--bg-deep);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { color: var(--accent-hover); }
-button { font-family: inherit; cursor: pointer; border: none; background: none; }
-
-.skip-link {
-  position: absolute; top: -40px; left: 0;
-  background: var(--accent); color: #fff;
-  padding: 8px 16px; z-index: 9999; border-radius: 4px;
-}
-.skip-link:focus { top: 0; }
-
-::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar       { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
-[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.22); }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); }

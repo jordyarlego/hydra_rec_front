@@ -1,21 +1,51 @@
-import { Chip } from '../common/Chip.jsx'
+/* ════════════════════════════════════════════════════
+   ChipsBar — métricas atuais em chips horizontais
+   UV, Pressão, Visibilidade, Maré, Solo, Vento
+   ════════════════════════════════════════════════════ */
 
-function formatNumber(value, suffix = '') {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--'
-  return `${Math.round(Number(value))}${suffix}`
+const uvLabel = u => u <= 2 ? 'Baixo' : u <= 5 ? 'Moderado' : u <= 7 ? 'Alto' : u <= 10 ? 'Muito Alto' : 'Extremo'
+const uvColor = u => u <= 2 ? '#22c55e' : u <= 5 ? '#eab308' : u <= 7 ? '#f97316' : u <= 10 ? '#ef4444' : '#a855f7'
+const soilColor = s => s > 80 ? '#ef4444' : s > 60 ? '#f97316' : undefined
+
+function visFromCode(code = 0) {
+  if (code === 0) return 12
+  if (code <= 2)  return 10
+  if (code === 3) return 8
+  if (code <= 48) return 2
+  if (code <= 57) return 5
+  if (code <= 67) return 4
+  if (code <= 82) return 6
+  return 2
 }
 
-export function ChipsBar({ current, heatIndex, traffic }) {
+function MetricChip({ label, value, color, light, hint }) {
+  return (
+    <div className={`metric-chip${light ? ' light' : ''}`} title={hint}>
+      <span className="metric-chip-label">{label}</span>
+      <span className="metric-chip-value" style={color ? { color } : undefined}>{value}</span>
+    </div>
+  )
+}
+
+export function ChipsBar({ current, risk, light = false }) {
   if (!current) return null
+  const rawValues = risk?.rawValues || risk?.raw_values || {}
+
+  const uv       = Math.round(rawValues.uvIndex ?? current.uv_index ?? 0)
+  const pressao  = Math.round(rawValues.pressao ?? current.surface_pressure ?? 1013)
+  const vis      = visFromCode(current.weather_code)
+  const mare     = rawValues.mareAltura ?? rawValues.mare_altura ?? 1.5
+  const soil     = Math.round((rawValues.saturacaoSolo ?? 0) * 100)
+  const vento    = Math.round(current.wind_speed_10m ?? 0)
 
   return (
-    <div className="chips-bar" aria-label="Resumo meteorológico">
-      <Chip label="Agora" value={formatNumber(current.temperature_2m, '°C')} tone="accent" />
-      <Chip label="Sensação" value={formatNumber(current.apparent_temperature, '°C')} />
-      <Chip label="Umidade" value={formatNumber(current.relative_humidity_2m, '%')} />
-      <Chip label="Chuva" value={`${current.precipitation ?? 0} mm`} />
-      {heatIndex && <Chip label="Calor" value={`${Math.round(heatIndex.value)}°C`} tone={heatIndex.risk?.toLowerCase()} />}
-      {traffic && <Chip label="Trânsito" value={`${traffic.label ?? 'Normal'}`} tone="traffic" />}
+    <div className="chips-bar scroll-x" aria-label="Resumo meteorológico">
+      <MetricChip label="UV"           value={`${uv} · ${uvLabel(uv)}`} color={uvColor(uv)} light={light} />
+      <MetricChip label="Pressão"      value={`${pressao} hPa`} light={light} />
+      <MetricChip label="Visibilidade" value={`${vis} km`} light={light} />
+      <MetricChip label="Maré"         value={`${mare}m`} light={light} />
+      <MetricChip label="Solo"         value={`${soil}%`} color={soilColor(soil)} light={light} />
+      <MetricChip label="Vento"        value={`${vento} km/h`} light={light} />
     </div>
   )
 }

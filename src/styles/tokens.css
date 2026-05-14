@@ -31,13 +31,13 @@
 
   /* Risco — cores semânticas (invariantes de tema) */
   --risk-seguro:  #22c55e;
-  --risk-atencao: #facc15;
+  --risk-atencao: #eab308;
   --risk-moderado:#f97316;
   --risk-alto:    #ef4444;
-  --risk-severo:  #7c3aed;
+  --risk-severo:  #a855f7;
 
   /* Confiança */
   --confidence-alta:  #22c55e;
-  --confidence-media: #f59e0b;
+  --confidence-media: #eab308;
   --confidence-baixa: #ef4444;
 }
