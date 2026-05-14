@@ -1,11 +1,7 @@
-/* ════════════════════════════════════════════════════
-   ChipsBar — métricas atuais em chips horizontais
-   UV, Pressão, Visibilidade, Maré, Solo, Vento
-   ════════════════════════════════════════════════════ */
+import { useRef, useEffect } from 'react'
 
 const uvLabel = u => u <= 2 ? 'Baixo' : u <= 5 ? 'Moderado' : u <= 7 ? 'Alto' : u <= 10 ? 'Muito Alto' : 'Extremo'
 const uvColor = u => u <= 2 ? '#22c55e' : u <= 5 ? '#eab308' : u <= 7 ? '#f97316' : u <= 10 ? '#ef4444' : '#a855f7'
-const soilColor = s => s > 80 ? '#ef4444' : s > 60 ? '#f97316' : undefined
 
 function visFromCode(code = 0) {
   if (code === 0) return 12
@@ -28,20 +24,61 @@ function MetricChip({ label, value, color, light, hint }) {
 }
 
 export function ChipsBar({ current, risk, light = false }) {
+  const barRef = useRef(null)
+
+  useEffect(() => {
+    const el = barRef.current
+    if (!el) return
+    let dragging = false, startX = 0, scrollLeft = 0
+
+    const onDown = e => {
+      dragging = true
+      startX = e.pageX - el.offsetLeft
+      scrollLeft = el.scrollLeft
+      el.style.cursor = 'grabbing'
+      el.style.userSelect = 'none'
+    }
+    const onUp = () => {
+      dragging = false
+      el.style.cursor = 'grab'
+      el.style.userSelect = ''
+    }
+    const onMove = e => {
+      if (!dragging) return
+      e.preventDefault()
+      const x = e.pageX - el.offsetLeft
+      el.scrollLeft = scrollLeft - (x - startX)
+    }
+
+    el.addEventListener('mousedown', onDown)
+    window.addEventListener('mouseup', onUp)
+    el.addEventListener('mousemove', onMove)
+    return () => {
+      el.removeEventListener('mousedown', onDown)
+      window.removeEventListener('mouseup', onUp)
+      el.removeEventListener('mousemove', onMove)
+    }
+  }, [])
+
   if (!current) return null
   const rawValues = risk?.rawValues || risk?.raw_values || {}
 
-  const uv       = Math.round(rawValues.uvIndex ?? current.uv_index ?? 0)
-  const umidade  = Math.round(current.relative_humidity_2m ?? 0)
-  const vis      = visFromCode(current.weather_code)
-  const mare     = rawValues.mareAltura ?? rawValues.mare_altura ?? 1.5
-  const vento    = Math.round(current.wind_speed_10m ?? 0)
+  const uv      = Math.round(rawValues.uvIndex ?? current.uv_index ?? 0)
+  const umidade = Math.round(current.relative_humidity_2m ?? 0)
+  const vis     = visFromCode(current.weather_code)
+  const mare    = rawValues.mareAltura ?? rawValues.mare_altura ?? 1.5
+  const vento   = Math.round(current.wind_speed_10m ?? 0)
 
   const umidadeLabel = umidade >= 80 ? 'Muito úmido' : umidade >= 60 ? 'Úmido' : umidade >= 40 ? 'Agradável' : 'Seco'
   const umidadeColor = umidade >= 80 ? '#38bdf8' : umidade >= 60 ? '#60a5fa' : umidade >= 40 ? '#22c55e' : '#f97316'
 
   return (
-    <div className="chips-bar scroll-x" aria-label="Resumo meteorológico">
+    <div
+      ref={barRef}
+      className="chips-bar scroll-x"
+      style={{ cursor: 'grab' }}
+      aria-label="Resumo meteorológico"
+    >
       <MetricChip label="Risco de queimadura" value={`${uvLabel(uv)} (UV ${uv})`} color={uvColor(uv)} light={light} />
       <MetricChip label="Umidade do ar"       value={`${umidade}% · ${umidadeLabel}`} color={umidadeColor} light={light} />
       <MetricChip label="Visibilidade"        value={`${vis} km`} light={light} />

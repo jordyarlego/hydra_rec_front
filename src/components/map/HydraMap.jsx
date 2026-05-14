@@ -57,7 +57,7 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
       attribution: TILE_ATTR,
     }).addTo(map)
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
+    L.control.zoom({ position: 'bottomleft' }).addTo(map)
 
     mapRef.current = map
 

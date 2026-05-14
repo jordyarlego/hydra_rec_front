@@ -25,7 +25,7 @@ export const BAIRRO_COORDS = {
   'Torreão':               [-8.0310, -34.8946],
   'Vasco da Gama':         [-8.0179, -34.9212],
   // Zona Central
-  'Boa Vista':             [-8.0605, -34.8826],
+  'Boa Vista':             [-8.0648, -34.8832],
   'Campo Grande':          [-8.0622, -34.8948],
   'Derby':                 [-8.0564, -34.8983],
   'Espinheiro':            [-8.0404, -34.8980],
@@ -33,7 +33,7 @@ export const BAIRRO_COORDS = {
   'Graças':                [-8.0459, -34.9008],
   'Ilha do Leite':         [-8.0533, -34.8784],
   'Ilha Joana Bezerra':    [-8.0760, -34.8838],
-  'Paissandu':             [-8.0564, -34.8877],
+  'Paissandu':             [-8.0533, -34.8852],
   'Recife Antigo':         [-8.0627, -34.8712],
   'Rosarinho':             [-8.0434, -34.9057],
   'Santo Amaro':           [-8.0553, -34.8817],
