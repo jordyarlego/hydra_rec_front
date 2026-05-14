@@ -1,0 +1,43 @@
+:root {
+  /* Tipografia */
+  --font-main: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Escala de tamanho */
+  --text-xs:   0.6875rem;
+  --text-sm:   0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.5rem;
+  --text-2xl:  2rem;
+
+  /* Espaçamento */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Bordas */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Transições */
+  --transition-fast: 120ms ease;
+  --transition-base: 220ms ease;
+
+  /* Risco — cores semânticas (invariantes de tema) */
+  --risk-seguro:  #22c55e;
+  --risk-atencao: #facc15;
+  --risk-moderado:#f97316;
+  --risk-alto:    #ef4444;
+  --risk-severo:  #7c3aed;
+
+  /* Confiança */
+  --confidence-alta:  #22c55e;
+  --confidence-media: #f59e0b;
+  --confidence-baixa: #ef4444;
+}

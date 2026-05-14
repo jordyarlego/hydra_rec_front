@@ -8,6 +8,10 @@ dist-ssr/
 # Vite cache
 .vite/
 
+# Test artifacts
+playwright-report/
+test-results/
+
 # Variáveis de ambiente (nunca commitar chaves)
 .env
 .env.local
