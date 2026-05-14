@@ -40,12 +40,11 @@ export function ChipsBar({ current, risk, light = false }) {
 
   return (
     <div className="chips-bar scroll-x" aria-label="Resumo meteorológico">
-      <MetricChip label="UV"           value={`${uv} · ${uvLabel(uv)}`} color={uvColor(uv)} light={light} />
-      <MetricChip label="Pressão"      value={`${pressao} hPa`} light={light} />
-      <MetricChip label="Visibilidade" value={`${vis} km`} light={light} />
-      <MetricChip label="Maré"         value={`${mare}m`} light={light} />
-      <MetricChip label="Solo"         value={`${soil}%`} color={soilColor(soil)} light={light} />
-      <MetricChip label="Vento"        value={`${vento} km/h`} light={light} />
+      <MetricChip label="Sol / Queimadura" value={`${uvLabel(uv)} (UV ${uv})`} color={uvColor(uv)} light={light} />
+      <MetricChip label="Pressão do ar"    value={`${pressao} hPa`} light={light} />
+      <MetricChip label="Alcance visual"   value={`${vis} km`} light={light} />
+      <MetricChip label="Nível do mar"     value={`${mare}m`} light={light} />
+      <MetricChip label="Vento"            value={`${vento} km/h`} light={light} />
     </div>
   )
 }
