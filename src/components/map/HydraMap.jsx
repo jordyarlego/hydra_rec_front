@@ -3,19 +3,13 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { BAIRRO_COORDS } from '../../data/bairro_coords.js'
 import { PONTOS_CRITICOS } from '../../data/pontos_criticos.js'
+import { getRiskColor } from '../../lib/riskColors.js'
 
 const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 const CARTO_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 const TILE_ATTR = '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CartoDB</a>'
 
 const SEV_COLOR = { leve: '#22c55e', moderado: '#f97316', grave: '#ef4444' }
-const RISK_COLOR = {
-  SEGURO:   '#22c55e',
-  ATENCAO:  '#86efac',
-  MODERADO: '#f97316',
-  ALTO:     '#ef4444',
-  SEVERO:   '#7c3aed',
-}
 
 const FALLBACK_CENTER = [-8.1195, -34.9008]
 
@@ -96,7 +90,7 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
     layersRef.current.riskCircle?.remove()
     const coords = BAIRRO_COORDS[bairro] ?? FALLBACK_CENTER
     const nivel = risk?.nivel ?? 'SEGURO'
-    const color = RISK_COLOR[nivel] ?? '#888'
+    const color = getRiskColor(nivel)
     layersRef.current.riskCircle = L.circle(coords, {
       radius: 700,
       color,
