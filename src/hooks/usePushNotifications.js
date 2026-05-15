@@ -13,7 +13,7 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!supported) { setStatus('unsupported'); return }
     if (Notification.permission === 'denied') { setStatus('denied'); return }
-    navigator.serviceWorker.ready
+    _ensureSWReady(3000)
       .then(reg => reg.pushManager.getSubscription())
       .then(sub => setStatus(sub ? 'subscribed' : 'idle'))
       .catch(() => setStatus('idle'))
@@ -29,8 +29,15 @@ export function usePushNotifications() {
     setLoading(true)
     setError(null)
     try {
-      // Step 1: garantir SW registrado
-      const reg = await navigator.serviceWorker.ready
+      // Step 1: garantir SW registrado (com timeout para não travar em dev)
+      let reg
+      try {
+        reg = await _ensureSWReady(8000)
+      } catch {
+        setError('Service Worker não pôde ser ativado. Recarregue a página e tente novamente.')
+        setStatus('error')
+        return
+      }
 
       // Step 2: pedir permissão primeiro (separadamente, para iOS/PWA)
       const perm = await Notification.requestPermission()
@@ -93,7 +100,7 @@ export function usePushNotifications() {
     if (!supported) return
     setLoading(true)
     try {
-      const reg = await navigator.serviceWorker.ready
+      const reg = await _ensureSWReady(5000)
       const sub = await reg.pushManager.getSubscription()
       if (sub) {
         await fetch('/api/push/subscribe', {
@@ -118,4 +125,20 @@ function _urlBase64ToUint8Array(base64String) {
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const raw = atob(base64)
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+}
+
+// Garante que existe um SW registrado e ativo, com timeout para não travar.
+// Em dev, main.jsx só registra o SW após PROD check em algumas versões — então
+// registramos aqui também como rede de segurança.
+async function _ensureSWReady(timeoutMs = 5000) {
+  const existing = await navigator.serviceWorker.getRegistration()
+  if (!existing) {
+    await navigator.serviceWorker.register('/sw.js')
+  }
+  return await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('serviceWorker.ready timeout')), timeoutMs)
+    ),
+  ])
 }
