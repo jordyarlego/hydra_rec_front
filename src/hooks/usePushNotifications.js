@@ -56,9 +56,15 @@ export function usePushNotifications() {
         setStatus('error')
         return
       }
-      const { key } = await res.json()
+      const payload = await res.json()
+      const key = (payload.key || '').trim()
       if (!key) {
-        setError('Servidor não tem VAPID_PUBLIC_KEY configurada.')
+        setError(payload.error || 'Servidor não tem VAPID_PUBLIC_KEY configurada.')
+        setStatus('error')
+        return
+      }
+      if (key.length !== 87) {
+        setError(`VAPID_PUBLIC_KEY malformada (${key.length} chars, esperado 87). Verifique o .env do backend.`)
         setStatus('error')
         return
       }
