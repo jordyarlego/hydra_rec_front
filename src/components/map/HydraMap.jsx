@@ -102,7 +102,7 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
     if (navigator.geolocation) {
       gpsWatchRef.current = navigator.geolocation.watchPosition(
         pos => setGpsPos([pos.coords.latitude, pos.coords.longitude]),
-        null,
+        () => {},
         { enableHighAccuracy: true, timeout: 10000 },
       )
     }

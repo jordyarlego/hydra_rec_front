@@ -72,7 +72,7 @@ export default function App() {
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
   const theme_cfg = CONDITION_THEME[condition] || CONDITION_THEME['Ensolarado']
 
-  /* ── Geolocalização: bairro oficial onde o ponto cai ── */
+  /* ── Geolocalização: bairro + salva pra reports ── */
   useEffect(() => {
     if (!navigator.geolocation) return
     let cancelled = false
@@ -80,6 +80,7 @@ export default function App() {
       async pos => {
         const lat = pos.coords.latitude
         const lon = pos.coords.longitude
+        setReportGps({ lat, lon, source: 'gps' })
         const geojson = await loadBairrosGeojson()
         if (cancelled) return
         setBairro(findBairroByPoint(geojson, lat, lon) || nearestBairro(lat, lon))
@@ -187,22 +188,7 @@ export default function App() {
 
   function openReportModal() {
     soundMgr.playClick()
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          setReportGps({ lat: pos.coords.latitude, lon: pos.coords.longitude, source: 'gps' })
-          setReportOpen(true)
-        },
-        () => {
-          setReportGps(null)
-          setReportOpen(true)
-        },
-        { timeout: 1500 },
-      )
-    } else {
-      setReportGps(null)
-      setReportOpen(true)
-    }
+    setReportOpen(true)
   }
 
   async function handleSubmitReport(payload) {
