@@ -6,7 +6,10 @@ import './styles/globals.css'
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
-      if (!import.meta.env.PROD) return
+      if (!import.meta.env.PROD) {
+        console.info('[SW] registrado em dev. Scope:', reg.scope)
+        return
+      }
 
       const checkForUpdate = () => reg.update().catch(() => {})
       setInterval(checkForUpdate, 15 * 60 * 1000)
@@ -32,7 +35,9 @@ if ('serviceWorker' in navigator) {
           }
         })
       })
-    }).catch(() => {})
+    }).catch(err => {
+      console.error('[SW] falha ao registrar /sw.js:', err)
+    })
   })
 }
 
