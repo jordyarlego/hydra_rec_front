@@ -1,3 +1,5 @@
+import { useFocusTrap } from '../../hooks/useFocusTrap.js'
+
 /* Modal "Por que esse score?" — renderiza texto da IA com formatação simples */
 
 function renderMd(text) {
@@ -12,17 +14,23 @@ function renderMd(text) {
 }
 
 export function ScoreExplain({ open, loading, text, error, onClose, light }) {
+  const trapRef = useFocusTrap(open, onClose)
+
   if (!open) return null
 
   return (
-    <div className="score-explain-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="Explicação do Hydra Score">
+    <div className="score-explain-backdrop" onClick={onClose}>
       <div
+        ref={trapRef}
         className={`score-explain-panel${light ? ' light' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="score-explain-title"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="score-explain-header">
-          <div className="score-explain-title">
+          <div id="score-explain-title" className="score-explain-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8a030" strokeWidth="2.2" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/>
               <path d="M12 16v-4M12 8h.01"/>

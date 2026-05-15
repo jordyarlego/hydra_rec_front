@@ -22,7 +22,8 @@ export function AlertBanner({ risk, bairro }) {
 
   return (
     <div
-      role="alert"
+      role={isActionable ? 'alert' : 'status'}
+      aria-live={isActionable ? 'assertive' : 'polite'}
       className={`alert-banner alert-${level.toLowerCase()}${isActionable ? ' is-actionable' : ''}`}
       style={{
         background: `${cfg.color}1a`,

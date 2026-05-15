@@ -13,7 +13,10 @@ import { AIInsight } from '../ai/AIInsight.jsx'
 import { RouteAnalysis } from '../route/RouteAnalysis.jsx'
 import { DifferentialTable } from '../benchmark/DifferentialTable.jsx'
 import { NearbyReportsList } from '../reports/NearbyReportsList.jsx'
+import { ApacBanner } from '../risk/ApacBanner.jsx'
 import { soundMgr, wmoToCondition } from '../../lib/soundManager.js'
+import { PushBell } from '../common/PushBell.jsx'
+import { useApac } from '../../hooks/useApac.js'
 
 /* ════════════════════════════════════════════════════
    Sidebar — painel lateral esquerdo (drawer no mobile)
@@ -62,10 +65,11 @@ export function Sidebar({
   bairro, onBairroChange,
   reports, onConfirmReport,
   light, soundOn, onSoundToggle, onThemeToggle,
-  mobile, onClose,
+  mobile, onClose, onRouteResult,
 }) {
   const [tab, setTab] = useState('ia')
-  const explain = useExplain()
+  const explain  = useExplain()
+  const { boletim: apacBoletim } = useApac()
 
   /* Derive a UI-friendly condition label */
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
@@ -75,6 +79,7 @@ export function Sidebar({
     <div className="sidebar-header">
       <HydraLogo size={32} showText={true} light={light} />
       <div className="sidebar-header-actions">
+          <PushBell />
         <IconBtn
           label={soundOn ? 'Silenciar' : 'Ativar som'}
           onClick={onSoundToggle}
@@ -135,7 +140,7 @@ export function Sidebar({
         <div className="sidebar-search-wrap">
           <BairroSearch value={bairro} onChange={onBairroChange} />
         </div>
-        <div className="sidebar-status">
+        <div className="sidebar-status" role="status" aria-live="polite" aria-busy="true">
           <div className="sidebar-status-logo"><HydraLogo size={48} showText={false} light={light} /></div>
           <div className="sidebar-status-msg">Carregando {bairro}...</div>
         </div>
@@ -196,6 +201,7 @@ export function Sidebar({
           />
 
           <AlertBanner risk={data.risk} bairro={bairro} />
+          {apacBoletim && <ApacBanner boletim={apacBoletim} light={light} />}
 
           <div>
             <ConfidenceBadge consensus={data.consensus} />
@@ -236,7 +242,7 @@ export function Sidebar({
                   reports={reports}
                 />
               )}
-              {tab === 'rota' && <RouteAnalysis currentBairro={bairro} />}
+              {tab === 'rota' && <RouteAnalysis currentBairro={bairro} consensus={data.consensus} onResult={onRouteResult} />}
               {tab === 'dif'  && <DifferentialTable consensus={data.consensus} risk={data.risk} />}
             </div>
           </div>

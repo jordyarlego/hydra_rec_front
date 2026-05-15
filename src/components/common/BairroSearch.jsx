@@ -44,8 +44,10 @@ export function BairroSearch({ value, onChange, placeholder = 'Buscar bairro...'
     else if (e.key === 'Escape')    { setOpen(false) }
   }
 
+  const listboxId = 'bairro-listbox'
+
   return (
-    <div className="bairro-search" ref={ref} role="combobox" aria-expanded={open} aria-haspopup="listbox">
+    <div className="bairro-search" ref={ref}>
       <div className="bairro-search-input-wrap">
         <svg className="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="11" cy="11" r="8" />
@@ -54,11 +56,15 @@ export function BairroSearch({ value, onChange, placeholder = 'Buscar bairro...'
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
           className="bairro-search-input"
           value={query}
           placeholder={value || placeholder}
           aria-label="Buscar bairro de Recife"
           aria-autocomplete="list"
+          aria-expanded={open && matches.length > 0}
+          aria-controls={listboxId}
+          aria-activedescendant={open && matches[focused] ? `bairro-opt-${focused}` : undefined}
           onChange={e => { setQuery(e.target.value); setOpen(true); setFocused(0) }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKey}
@@ -75,10 +81,11 @@ export function BairroSearch({ value, onChange, placeholder = 'Buscar bairro...'
         )}
       </div>
       {open && matches.length > 0 && (
-        <ul className="bairro-search-list" role="listbox" aria-label="Bairros de Recife">
+        <ul id={listboxId} className="bairro-search-list" role="listbox" aria-label="Bairros de Recife">
           {matches.map((b, i) => (
             <li
               key={b}
+              id={`bairro-opt-${i}`}
               role="option"
               aria-selected={i === focused}
               className={`bairro-option ${i === focused ? 'focused' : ''}`}

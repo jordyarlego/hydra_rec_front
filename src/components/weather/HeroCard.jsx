@@ -2,6 +2,16 @@ import { ScoreRing } from '../risk/ScoreRing.jsx'
 import { WindCompass } from './WindCompass.jsx'
 import { AtmosphericBg } from '../effects/AtmosphericBg.jsx'
 
+function displayCondition(condition, isNight) {
+  if (!isNight) return condition
+  if (condition === 'Ensolarado') return 'Noite limpa'
+  if (condition === 'Parcialmente Nublado') return 'Noite parcialmente nublada'
+  if (condition === 'Nublado com Chuviscos') return 'Noite chuvosa'
+  if (condition === 'Chuva Moderada') return 'Chuva à noite'
+  if (condition === 'Chuva com Trovoadas') return 'Trovoadas à noite'
+  return 'Tempestade à noite'
+}
+
 /* ════════════════════════════════════════════════════
    HeroCard — cabeçalho do bairro com temp gigante + score
    Props derivam diretamente do useDashboard:
@@ -21,6 +31,8 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
   const wind     = Math.round(current.wind_speed_10m ?? 0)
   const windDeg  = current.wind_direction_10m ?? 0
   const precip   = current.precipitation ?? 0
+  const isNight  = current.is_day === 0
+  const conditionLabel = displayCondition(condition, isNight)
   const rawValues = risk.rawValues || risk.raw_values || {}
   const rajada   = Math.round(rawValues.rajadaVento ?? rawValues.rajada_vento ?? wind + 8)
 
@@ -32,7 +44,7 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
 
   return (
     <div className="hero-card fade-in" key={`${bairro}-hero`}>
-      <AtmosphericBg condition={condition} light={light} />
+      <AtmosphericBg condition={condition} light={light} isNight={isNight} />
 
       {/* City line */}
       <div className="hero-city" style={{ color: tc3 }}>
@@ -50,7 +62,7 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
       <div className="hero-main">
         <div className="hero-left">
           <div className="hero-condition" style={{ color: light ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.8)' }}>
-            {condition}
+            {conditionLabel}
           </div>
           <div className="hero-temp" style={{ color: tc }}>{temp}°</div>
           <div className="hero-feels" style={{ color: tc2 }}>
@@ -59,15 +71,13 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
         </div>
         <div className="hero-ring">
           <ScoreRing risk={risk} light={light} size={76} />
-          <div className="hero-ring-label" style={{ color: tc3 }}>Hydra Score</div>
+          <div className="hero-ring-label">Hydra Score</div>
           {onExplain && (
             <button
               type="button"
               className="score-why-btn"
               onClick={onExplain}
-              title="Por que esse score?"
-              aria-label="Explicar pontuação"
-              style={{ color: tc3 }}
+              aria-label="Explicar por que esse score"
             >
               Por que?
             </button>
@@ -76,7 +86,7 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
       </div>
 
       {/* Wind / precip row */}
-      <div className="hero-windrow" style={{ borderTop: `1px solid ${divLine}` }}>
+      <div className="hero-windrow" style={{ borderTop: `1px solid ${divLine}` }} aria-label={`Vento ${wind} km/h, rajadas ${rajada} km/h${precip > 0 ? `, chuva ${precip.toFixed(1)} mm/h` : ', sem chuva'}`}>
         <WindCompass deg={windDeg} light={light} size={40} />
         <div className="hero-wind-info">
           <div className="hero-wind-value">
@@ -88,6 +98,7 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
         <div className="hero-precip" style={{ textAlign: 'right' }}>
           {precip > 0 ? (
             <>
+              <div style={{ color: tc3, fontSize: '9px', letterSpacing: '.06em', textTransform: 'uppercase' }}>Chuva</div>
               <div style={{ color: acc }}>{precip.toFixed(1)}</div>
               <div style={{ color: tc3 }}>mm/h</div>
             </>

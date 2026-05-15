@@ -39,7 +39,7 @@ export const BAIRRO_COORDS = {
   'Santo Amaro':           [-8.0553, -34.8817],
   'Santo Antônio':         [-8.0631, -34.8742],
   'São José':              [-8.0674, -34.8764],
-  'Soledade':              [-8.0488, -34.8962],
+  'Soledade':              [-8.0472, -34.9003],
   // Zona Oeste
   'Afogados':              [-8.0978, -34.9156],
   'Areias':                [-8.1050, -34.9260],

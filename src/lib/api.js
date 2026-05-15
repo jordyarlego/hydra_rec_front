@@ -15,9 +15,9 @@ async function request(path, options = {}) {
 export const api = {
   getDashboard: (bairro) => request(`/api/dashboard/${encodeURIComponent(bairro)}`),
   getScores: (bairros) => request('/api/scores', { method: 'POST', body: JSON.stringify({ bairros }) }),
-  getNarrative: (cityName, riskData, consensusData, nearbyReports) => request('/api/narrative', {
+  getNarrative: (cityName, riskData, consensusData, nearbyReports, apacBoletim) => request('/api/narrative', {
     method: 'POST',
-    body: JSON.stringify({ cityName, riskData, consensusData, nearbyReports }),
+    body: JSON.stringify({ cityName, riskData, consensusData, nearbyReports, apacBoletim }),
   }),
   getHealthz: () => request('/api/healthz'),
   createReport: (payload) => request('/api/reports', { method: 'POST', body: JSON.stringify(payload) }),

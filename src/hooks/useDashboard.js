@@ -22,5 +22,5 @@ export function useDashboard(bairro) {
 
   useEffect(() => { load() }, [load])
 
-  return { data, loading, error, refresh: load }
+  return { data, loading, error, refresh: load, setData }
 }

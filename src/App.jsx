@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useWebSocket } from './hooks/useWebSocket.js'
 import { useTheme } from './hooks/useTheme.js'
 import { useDashboard } from './hooks/useDashboard.js'
 import { useReports } from './hooks/useReports.js'
 import { soundMgr, wmoToCondition, CONDITION_THEME } from './lib/soundManager.js'
 import { BAIRRO_COORDS } from './data/bairro_coords.js'
+import { findBairroByPoint, getBairroCenterFromGeojson, loadBairrosGeojson } from './lib/bairroGeo.js'
 
 import { LoadingScreen } from './components/loading/LoadingScreen.jsx'
-import { AtmosphericBg } from './components/effects/AtmosphericBg.jsx'
 import { Sidebar }       from './components/layout/Sidebar.jsx'
 import { MapStage }      from './components/layout/MapStage.jsx'
 import { MobileNav }     from './components/layout/MobileNav.jsx'
@@ -15,6 +16,11 @@ import { ReportModal }   from './components/reports/ReportModal.jsx'
 import './styles/app.css'
 
 const FALLBACK_COORDS = [-8.1195, -34.9008]
+const MOBILE_BREAKPOINT = 900
+
+function getInitialMobileState() {
+  return window.innerWidth <= MOBILE_BREAKPOINT
+}
 
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371
@@ -33,6 +39,13 @@ function nearestBairro(lat, lon) {
   return best
 }
 
+async function resolveBairroCoords(bairro) {
+  const coords = BAIRRO_COORDS[bairro]
+  if (coords) return coords
+  const geojson = await loadBairrosGeojson()
+  return getBairroCenterFromGeojson(geojson, bairro) || FALLBACK_COORDS
+}
+
 export default function App() {
   const { theme, toggle: toggleTheme } = useTheme()
   const isLight = theme === 'light'
@@ -40,42 +53,70 @@ export default function App() {
   const [ready,        setReady]        = useState(false)
   const [bairro,       setBairro]       = useState('Boa Viagem')
   const [soundOn,      setSoundOn]      = useState(() => localStorage.getItem('hr_sound') !== 'off')
-  const [sidebarOpen,  setSidebarOpen]  = useState(false)
-  const [isMobile,     setIsMobile]     = useState(() => window.innerWidth <= 900)
+  const [isMobile,     setIsMobile]     = useState(getInitialMobileState)
+  const [sidebarOpen,  setSidebarOpen]  = useState(getInitialMobileState)
   const [mobileView,   setMobileView]   = useState('sidebar')
   const [reportOpen,   setReportOpen]   = useState(false)
   const [reportGps,    setReportGps]    = useState(null)
+  const [routeResult,  setRouteResult]  = useState(null)
   const prevScoreRef = useRef(null)
 
   /* ── Backend hooks ── */
-  const { data, loading, error, refresh } = useDashboard(bairro)
+  const { data, loading, error, refresh, setData } = useDashboard(bairro)
+
+  const onWsData = useCallback(d => { if (d?.risk) setData(d) }, [setData])
+  useWebSocket(bairro, onWsData)
   const { reports, loadNearby, submitReport, confirmReport } = useReports()
 
   /* ── Derive condition/theme from weather code ── */
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
   const theme_cfg = CONDITION_THEME[condition] || CONDITION_THEME['Ensolarado']
 
-  /* ── Geolocalização: bairro mais próximo ao abrir ── */
+  /* ── Geolocalização: bairro oficial onde o ponto cai ── */
   useEffect(() => {
     if (!navigator.geolocation) return
+    let cancelled = false
     navigator.geolocation.getCurrentPosition(
-      pos => setBairro(nearestBairro(pos.coords.latitude, pos.coords.longitude)),
+      async pos => {
+        const lat = pos.coords.latitude
+        const lon = pos.coords.longitude
+        const geojson = await loadBairrosGeojson()
+        if (cancelled) return
+        setBairro(findBairroByPoint(geojson, lat, lon) || nearestBairro(lat, lon))
+      },
       () => {},
       { timeout: 5000, maximumAge: 60000 }
     )
+    return () => { cancelled = true }
   }, [])
 
   /* ── Resize ── */
   useEffect(() => {
-    const h = () => setIsMobile(window.innerWidth <= 900)
+    const h = () => {
+      const nextIsMobile = window.innerWidth <= MOBILE_BREAKPOINT
+      setIsMobile(prevIsMobile => {
+        if (!prevIsMobile && nextIsMobile) {
+          setMobileView('sidebar')
+          setSidebarOpen(true)
+        }
+        if (prevIsMobile && !nextIsMobile) {
+          setMobileView('map')
+          setSidebarOpen(false)
+        }
+        return nextIsMobile
+      })
+    }
     window.addEventListener('resize', h)
     return () => window.removeEventListener('resize', h)
   }, [])
 
   /* ── Load reports when bairro changes ── */
   useEffect(() => {
-    const [lat, lon] = BAIRRO_COORDS[bairro] || FALLBACK_COORDS
-    loadNearby(lat, lon)
+    let cancelled = false
+    resolveBairroCoords(bairro).then(([lat, lon]) => {
+      if (!cancelled) loadNearby(lat, lon)
+    })
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bairro])
 
@@ -118,8 +159,14 @@ export default function App() {
   /* ── Handlers ── */
   function handleBairroChange(b) {
     setBairro(b)
+    setRouteResult(null)
     setSidebarOpen(false)
     if (isMobile) setMobileView('map')
+  }
+
+  function closeMobileSidebar() {
+    setSidebarOpen(false)
+    setMobileView('map')
   }
 
   function handleSoundToggle() {
@@ -143,27 +190,24 @@ export default function App() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         pos => {
-          setReportGps({ lat: pos.coords.latitude, lon: pos.coords.longitude })
+          setReportGps({ lat: pos.coords.latitude, lon: pos.coords.longitude, source: 'gps' })
           setReportOpen(true)
         },
         () => {
-          const [lat, lon] = BAIRRO_COORDS[bairro] || FALLBACK_COORDS
-          setReportGps({ lat, lon })
+          setReportGps(null)
           setReportOpen(true)
         },
         { timeout: 1500 },
       )
     } else {
-      const [lat, lon] = BAIRRO_COORDS[bairro] || FALLBACK_COORDS
-      setReportGps({ lat, lon })
+      setReportGps(null)
       setReportOpen(true)
     }
   }
 
   async function handleSubmitReport(payload) {
     await submitReport(payload)
-    const [lat, lon] = BAIRRO_COORDS[bairro] || FALLBACK_COORDS
-    loadNearby(lat, lon)
+    loadNearby(payload.lat, payload.lon)
   }
 
   /* ── Splash ── */
@@ -173,16 +217,9 @@ export default function App() {
     <div className={`app-root${isLight ? ' light' : ''}`} data-theme={theme}>
       <a href="#main" className="skip-link">Ir para conteúdo</a>
 
-      {/* Atmospheric background */}
-      <AtmosphericBg
-        condition={condition}
-        light={isLight}
-        onThunder={() => { if (soundOn && soundMgr.ctx) soundMgr.playThunder() }}
-      />
-
       {/* Mobile overlay (under sidebar when open) */}
       {isMobile && sidebarOpen && (
-        <div className="mobile-overlay" aria-hidden="true" onClick={() => setSidebarOpen(false)} />
+        <div className="mobile-overlay" aria-hidden="true" onClick={closeMobileSidebar} />
       )}
 
       {/* Sidebar (drawer no mobile) */}
@@ -204,7 +241,8 @@ export default function App() {
           onSoundToggle={handleSoundToggle}
           onThemeToggle={handleThemeToggle}
           mobile={isMobile}
-          onClose={() => setSidebarOpen(false)}
+          onClose={closeMobileSidebar}
+          onRouteResult={setRouteResult}
         />
       </aside>
 
@@ -241,6 +279,7 @@ export default function App() {
           darkMode={!isLight}
           onCreateReport={openReportModal}
           mobile={isMobile}
+          routeResult={routeResult}
         />
       </main>
 
@@ -261,8 +300,9 @@ export default function App() {
         open={reportOpen}
         onClose={() => setReportOpen(false)}
         onSubmit={handleSubmitReport}
-        lat={reportGps?.lat}
-        lon={reportGps?.lon}
+        bairro={bairro}
+        userLat={reportGps?.lat}
+        userLon={reportGps?.lon}
       />
     </div>
   )

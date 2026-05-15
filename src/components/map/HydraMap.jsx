@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { BAIRRO_COORDS } from '../../data/bairro_coords.js'
 import { PONTOS_CRITICOS } from '../../data/pontos_criticos.js'
 import { getRiskColor } from '../../lib/riskColors.js'
+import { findBairroFeature, loadBairrosGeojson } from '../../lib/bairroGeo.js'
 
 const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 const CARTO_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
@@ -23,16 +24,47 @@ function makeCriticoIcon() {
   })
 }
 
-export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReportClick }) {
+function makeDestinationIcon() {
+  return L.divIcon({
+    className: 'route-destination-icon',
+    html: `
+      <span class="route-destination-pin" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12z" fill="currentColor"/>
+          <circle cx="12" cy="9" r="2.7" fill="#fff"/>
+        </svg>
+      </span>
+    `,
+    iconSize: [34, 42],
+    iconAnchor: [17, 40],
+    popupAnchor: [0, -36],
+  })
+}
+
+const HAZARD_COLOR = { leve: '#22c55e', moderado: '#f97316', grave: '#ef4444' }
+
+export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReportClick, routeResult }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const tileRef = useRef(null)
   const layersRef = useRef({})
   const gpsWatchRef = useRef(null)
+  const routeLayersRef = useRef([])
 
   const [showReports, setShowReports] = useState(true)
   const [showCriticos, setShowCriticos] = useState(true)
+  const [showRoute, setShowRoute] = useState(true)
   const [gpsPos, setGpsPos] = useState(null)
+  const [bairrosGeojson, setBairrosGeojson] = useState(null)
+
+  // ── Official Recife neighborhood boundaries ─────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+    loadBairrosGeojson().then(data => {
+      if (!cancelled) setBairrosGeojson(data)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   // ── Init map once ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -55,6 +87,17 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
 
     mapRef.current = map
 
+    const invalidate = () => map.invalidateSize({ pan: false })
+    requestAnimationFrame(invalidate)
+    const timeout = window.setTimeout(invalidate, 250)
+
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(invalidate)
+    })
+    resizeObserver.observe(containerRef.current)
+
+    window.addEventListener('resize', invalidate)
+
     // GPS
     if (navigator.geolocation) {
       gpsWatchRef.current = navigator.geolocation.watchPosition(
@@ -65,6 +108,9 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
     }
 
     return () => {
+      window.clearTimeout(timeout)
+      window.removeEventListener('resize', invalidate)
+      resizeObserver.disconnect()
       if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current)
       map.remove()
       mapRef.current = null
@@ -80,26 +126,54 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
   // ── Pan to bairro ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return
+    const feature = findBairroFeature(bairrosGeojson, bairro)
+    if (feature) {
+      const bounds = L.geoJSON(feature).getBounds()
+      if (bounds.isValid()) {
+        mapRef.current.fitBounds(bounds, { animate: true, duration: 0.6, padding: [52, 52], maxZoom: 15 })
+        return
+      }
+    }
     const coords = BAIRRO_COORDS[bairro] ?? FALLBACK_CENTER
     mapRef.current.setView(coords, 14, { animate: true, duration: 0.6 })
-  }, [bairro])
+  }, [bairro, bairrosGeojson])
 
-  // ── Risk circle ──────────────────────────────────────────────────────────
+  // ── Official bairro risk area ────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return
-    layersRef.current.riskCircle?.remove()
+    layersRef.current.riskLayer?.remove()
     const coords = BAIRRO_COORDS[bairro] ?? FALLBACK_CENTER
     const nivel = risk?.nivel ?? 'SEGURO'
     const color = getRiskColor(nivel)
-    layersRef.current.riskCircle = L.circle(coords, {
-      radius: 700,
+    const feature = findBairroFeature(bairrosGeojson, bairro)
+
+    if (feature) {
+      layersRef.current.riskLayer = L.geoJSON(feature, {
+        style: {
+          color,
+          weight: 1.8,
+          opacity: 0.88,
+          fillColor: color,
+          fillOpacity: 0.08,
+        },
+      })
+        .bindTooltip(`${bairro} — ${nivel} (score ${risk?.score ?? '—'}). Limite oficial do bairro.`, { sticky: true })
+        .addTo(mapRef.current)
+      return
+    }
+
+    layersRef.current.riskLayer = L.circle(coords, {
+      radius: 520,
       color,
-      weight: 2,
+      weight: 1.5,
+      opacity: 0.75,
       fillColor: color,
-      fillOpacity: 0.13,
-    }).bindTooltip(`${bairro} — ${nivel} (score ${risk?.score ?? '—'})`, { sticky: true })
+      fillOpacity: 0.08,
+      dashArray: '6 8',
+    })
+      .bindTooltip(`${bairro} — ${nivel} (score ${risk?.score ?? '—'}). Centro aproximado; limite oficial indisponível.`, { sticky: true })
       .addTo(mapRef.current)
-  }, [bairro, risk])
+  }, [bairro, risk, bairrosGeojson])
 
   // ── GPS marker ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -172,6 +246,62 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
       : layersRef.current.criticos.remove()
   }, [showCriticos])
 
+  // ── Route polyline + hazard circles ─────────────────────────────────────
+  useEffect(() => {
+    routeLayersRef.current.forEach(l => l.remove())
+    routeLayersRef.current = []
+    if (!mapRef.current || !routeResult?.route_coords?.length) return
+
+    const polyline = L.polyline(routeResult.route_coords, {
+      color: '#3b82f6',
+      weight: 4,
+      opacity: 0.88,
+    })
+      .bindTooltip(
+        `Trajeto — score ${routeResult.risk_score ?? '?'}/100 · ${routeResult.distance_km ?? '?'} km`,
+        { sticky: true },
+      )
+      .addTo(mapRef.current)
+    routeLayersRef.current.push(polyline)
+
+    const destination = routeResult.route_coords[routeResult.route_coords.length - 1]
+    if (destination) {
+      const destMarker = L.marker(destination, { icon: makeDestinationIcon(), zIndexOffset: 900 })
+        .bindTooltip('Destino', { direction: 'top', offset: [0, -34], opacity: 0.95 })
+        .addTo(mapRef.current)
+      routeLayersRef.current.push(destMarker)
+    }
+
+    const bounds = polyline.getBounds()
+    if (bounds.isValid()) {
+      mapRef.current.fitBounds(bounds, { padding: [48, 48], maxZoom: 15, animate: true, duration: 0.6 })
+    }
+
+    for (const h of routeResult.hazards ?? []) {
+      if (h.lat == null || h.lon == null) continue
+      const color = HAZARD_COLOR[h.severity] || '#f97316'
+      const circle = L.circle([h.lat, h.lon], {
+        radius: 280,
+        color,
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.22,
+      })
+        .bindPopup(
+          `<div class="map-popup"><b>${h.name}</b><br/><span>${h.description}</span><br/><small>Fonte: Defesa Civil PE / APAC</small></div>`,
+        )
+        .addTo(mapRef.current)
+      routeLayersRef.current.push(circle)
+    }
+  }, [routeResult])
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    routeLayersRef.current.forEach(l => {
+      showRoute ? l.addTo(mapRef.current) : l.remove()
+    })
+  }, [showRoute])
+
   return (
     <div className={`hydra-map-wrap${!darkMode ? ' map-light' : ''}`}>
       <div ref={containerRef} className="hydra-map-canvas" aria-label="Mapa de risco interativo" />
@@ -200,6 +330,16 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
           >
             <span className="layer-dot" style={{ background: '#3b82f6' }} />
             GPS
+          </button>
+        )}
+        {routeResult?.route_coords?.length > 0 && (
+          <button
+            className={`map-layer-btn ${showRoute ? 'active' : ''}`}
+            onClick={() => setShowRoute(v => !v)}
+            aria-pressed={showRoute}
+          >
+            <span className="layer-dot" style={{ background: '#3b82f6' }} />
+            Trajeto
           </button>
         )}
       </div>

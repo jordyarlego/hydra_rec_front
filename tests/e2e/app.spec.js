@@ -32,16 +32,39 @@ const dashboardPayload = {
   ],
 }
 
-test('opens dashboard and toggles theme', async ({ page }) => {
+async function mockApi(page) {
   await page.route('**/api/dashboard/**', route => route.fulfill({ json: dashboardPayload }))
+  await page.route('**/api/reports/nearby**', route => route.fulfill({ json: { reports: [] } }))
+  await page.route('**/api/narrative', route => route.fulfill({ json: { narrative: 'Risco moderado em monitoramento.' } }))
+}
+
+test('opens dashboard and toggles theme', async ({ page }) => {
+  await mockApi(page)
 
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: 'Boa Viagem' })).toBeVisible()
-  await expect(page.getByLabel(/Hydra Score 52 de 100/i)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Boa Viagem' })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByLabel(/Hydra Score 52, MODERADO/i)).toBeVisible()
 
-  const themeToggle = page.getByRole('button', { name: /Mudar para tema/i })
+  const themeToggle = page.getByRole('button', { name: /Modo claro/i })
   await themeToggle.click()
 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+})
+
+test('mobile starts on panel and keeps map controls visible', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockApi(page)
+
+  await page.goto('/')
+
+  await expect(page.locator('.sidebar-panel.mobile.open')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: 'Boa Viagem' })).toBeVisible({ timeout: 10000 })
+
+  await page.getByRole('button', { name: 'Fechar' }).click()
+
+  await expect(page.locator('.map-stage')).toBeVisible()
+  await expect(page.locator('.leaflet-control-zoom')).toBeVisible()
+  await expect(page.locator('.leaflet-control-zoom-in')).toBeInViewport()
+  await expect(page.locator('.leaflet-control-zoom-out')).toBeInViewport()
 })
