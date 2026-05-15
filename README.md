@@ -69,10 +69,13 @@ npm run test:e2e
 
 ## Features implementadas
 
-### PWA — Instalável e offline
+### PWA — Instalável, atualização automática, sem zoom no iOS
 O app é um Progressive Web App completo:
 - `public/manifest.json` — nome, ícone, tema, `display: standalone` (abre sem barra do browser)
 - `public/sw.js` — service worker registrado em `main.jsx` **apenas em produção** (em dev, SWs registrados são desregistrados automaticamente para evitar cache stale). Estratégia **network-first**: pass-through para a rede; push e notificationclick handlers integrados.
+- **Auto-update**: `main.jsx` chama `reg.update()` a cada 15 min e também no `visibilitychange` (volta a foco). Quando um SW novo instala, recebe `SKIP_WAITING` via `postMessage` e o `controllerchange` listener recarrega a página automaticamente. Resultado: PWA já instalado pega versão nova do Vercel/Render sem reinstalar.
+- **Sem zoom no iOS**: `index.html` usa `viewport-fit=cover` e CSS força `font-size: 16px` em todos os inputs no mobile (`@media max-width: 768px`). iOS Safari só aplica zoom quando input tem font < 16px, então essa regra resolve.
+- Meta tags `apple-mobile-web-app-capable` e `mobile-web-app-capable` para PWA standalone no iOS.
 - Instalável via botão "Adicionar à tela inicial" em Android/iOS/Desktop Chrome.
 
 ### WebSocket — Dados em tempo real
@@ -82,14 +85,20 @@ Reconexão automática com backoff exponencial: 2s → 4s → 8s... até 60s má
 
 Por que não usar polling HTTP? WebSocket mantém uma única conexão TCP persistente em vez de abrir e fechar uma nova conexão a cada request — menos overhead de rede para updates frequentes.
 
-### Push Notifications — Alertas de risco
-`hooks/usePushNotifications.js` gerencia o ciclo completo de Web Push:
-1. Pede permissão ao usuário
-2. Busca a chave pública VAPID em `GET /api/push/vapid-public-key`
-3. Registra a assinatura no browser via `PushManager.subscribe()`
-4. Envia a assinatura para `POST /api/push/subscribe` (salva no Supabase)
+### Push Notifications — Alertas de risco com feedback visual
+`hooks/usePushNotifications.js` gerencia o ciclo completo de Web Push, com **estados explícitos** (`idle | subscribed | denied | unsupported | error | loading`) e mensagens de erro detalhadas:
+1. Aguarda SW estar pronto (`navigator.serviceWorker.ready`)
+2. **Pede permissão separadamente** (`Notification.requestPermission()`) — necessário em iOS Safari/PWA
+3. Busca chave VAPID em `GET /api/push/vapid-public-key` (erro explícito se backend não configurou `VAPID_PUBLIC_KEY`)
+4. Registra subscription via `PushManager.subscribe()`
+5. Envia para `POST /api/push/subscribe` (com erro se backend rejeitar)
 
-`components/common/PushBell.jsx` — sino no header da sidebar. Laranja com ponto verde quando ativo; cinza quando inativo; desabilitado se o usuário bloqueou no browser.
+`components/common/PushBell.jsx` — sino no header da sidebar. **Toast visual** (verde de sucesso ou vermelho de erro) aparece quando o usuário clica, explicando exatamente o que aconteceu. Estados:
+- Laranja com ponto verde → ativo
+- Cinza → inativo
+- Vermelho → erro (com tooltip explicando)
+- Desabilitado → permissão bloqueada no browser
+- Spinner → loading durante subscribe/unsubscribe
 
 O backend dispara push quando o motor de alertas comunitários cria um alerta por concentração de reports recentes no mesmo bairro. VAPID (Voluntary Application Server Identification) é o padrão W3C para push sem depender de serviços pagos — funciona nativamente em Chrome, Firefox, Edge e Safari 16+.
 
@@ -217,6 +226,8 @@ Input de endereço livre como Google Maps — o usuário digita qualquer rua, ba
 - Rodapé: "Rota: OSRM/OSM · Estações: APAC Geoportal (RT) · Alertas: INMET"
 
 **Botão swap ⇅** inverte origem e destino com um clique.
+
+**Loading state profissional:** durante o cálculo, aparece um card com 3 anéis concêntricos animados nas cores do HydraRec (âmbar #e8a030) girando em direções alternadas + texto "Analisando seu trajeto · OSRM · APAC · INMET · Defesa Civil PE". O botão também mostra spinner enquanto carrega.
 
 **No mapa Leaflet:** ao calcular a rota, o mapa faz zoom automático para enquadrar o trajeto. Polyline azul + círculos coloridos (verde/laranja/vermelho) em cada hazard com popup descritivo. Botão "Trajeto" nos controles do mapa para ocultar/mostrar.
 

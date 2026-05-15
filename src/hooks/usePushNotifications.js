@@ -1,57 +1,116 @@
 import { useState, useEffect, useCallback } from 'react'
 
 export function usePushNotifications() {
-  const [status, setStatus] = useState('idle') // idle | subscribed | denied | unsupported
+  const [status, setStatus] = useState('idle') // idle | subscribed | denied | unsupported | error
+  const [error, setError]   = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const supported = 'serviceWorker' in navigator && 'PushManager' in window
+  const supported = typeof navigator !== 'undefined'
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window
+    && 'Notification' in window
 
   useEffect(() => {
     if (!supported) { setStatus('unsupported'); return }
-    navigator.serviceWorker.ready.then(reg =>
-      reg.pushManager.getSubscription().then(sub => {
-        setStatus(sub ? 'subscribed' : 'idle')
-      })
-    )
+    if (Notification.permission === 'denied') { setStatus('denied'); return }
+    navigator.serviceWorker.ready
+      .then(reg => reg.pushManager.getSubscription())
+      .then(sub => setStatus(sub ? 'subscribed' : 'idle'))
+      .catch(() => setStatus('idle'))
   }, [supported])
 
   const subscribe = useCallback(async () => {
-    if (!supported) return
-    try {
-      const res = await fetch('/api/push/vapid-public-key')
-      const { key } = await res.json()
-      if (!key) return
+    if (!supported) {
+      setError('Seu navegador não suporta notificações push.')
+      setStatus('unsupported')
+      return
+    }
 
+    setLoading(true)
+    setError(null)
+    try {
+      // Step 1: garantir SW registrado
       const reg = await navigator.serviceWorker.ready
+
+      // Step 2: pedir permissão primeiro (separadamente, para iOS/PWA)
+      const perm = await Notification.requestPermission()
+      if (perm !== 'granted') {
+        setStatus(perm === 'denied' ? 'denied' : 'idle')
+        setError(perm === 'denied'
+          ? 'Notificações bloqueadas. Habilite nas configurações do navegador.'
+          : 'Permissão de notificação não concedida.')
+        return
+      }
+
+      // Step 3: buscar chave VAPID
+      const res = await fetch('/api/push/vapid-public-key')
+      if (!res.ok) {
+        setError(`Servidor retornou ${res.status} ao buscar chave VAPID.`)
+        setStatus('error')
+        return
+      }
+      const { key } = await res.json()
+      if (!key) {
+        setError('Servidor não tem VAPID_PUBLIC_KEY configurada.')
+        setStatus('error')
+        return
+      }
+
+      // Step 4: inscrever no PushManager
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: _urlBase64ToUint8Array(key),
       })
-      await fetch('/api/push/subscribe', {
+
+      // Step 5: enviar subscription ao backend
+      const saveRes = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sub.toJSON()),
       })
+      if (!saveRes.ok) {
+        setError(`Backend rejeitou a inscrição (HTTP ${saveRes.status}).`)
+        setStatus('error')
+        return
+      }
+
       setStatus('subscribed')
     } catch (e) {
-      if (Notification.permission === 'denied') setStatus('denied')
+      const msg = e?.message || String(e)
+      if (Notification.permission === 'denied') {
+        setStatus('denied')
+        setError('Notificações bloqueadas no navegador.')
+      } else {
+        setStatus('error')
+        setError(`Falha ao ativar: ${msg.slice(0, 120)}`)
+      }
+    } finally {
+      setLoading(false)
     }
   }, [supported])
 
   const unsubscribe = useCallback(async () => {
     if (!supported) return
-    const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
-    if (!sub) return
-    await fetch('/api/push/subscribe', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sub.toJSON()),
-    })
-    await sub.unsubscribe()
-    setStatus('idle')
+    setLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sub.toJSON()),
+        }).catch(() => {})
+        await sub.unsubscribe()
+      }
+      setStatus('idle')
+      setError(null)
+    } finally {
+      setLoading(false)
+    }
   }, [supported])
 
-  return { status, subscribe, unsubscribe, supported }
+  return { status, error, loading, subscribe, unsubscribe, supported }
 }
 
 function _urlBase64ToUint8Array(base64String) {

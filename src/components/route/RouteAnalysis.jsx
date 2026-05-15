@@ -307,9 +307,27 @@ export function RouteAnalysis({ currentBairro, consensus, onResult }) {
         disabled={!canSubmit}
         data-state={loading ? 'loading' : canSubmit ? 'ready' : 'disabled'}
       >
-        <NavigationArrow size={14} weight="fill" aria-hidden="true" />
+        {loading ? (
+          <span className="route-spinner" aria-hidden="true" />
+        ) : (
+          <NavigationArrow size={14} weight="fill" aria-hidden="true" />
+        )}
         <span>{loading ? 'Calculando rota…' : 'Calcular rota'}</span>
       </button>
+
+      {loading && (
+        <div className="route-loading-card" aria-live="polite">
+          <div className="route-loading-rings">
+            <div className="route-loading-ring route-loading-ring-1" />
+            <div className="route-loading-ring route-loading-ring-2" />
+            <div className="route-loading-ring route-loading-ring-3" />
+          </div>
+          <div className="route-loading-text">
+            <strong>Analisando seu trajeto</strong>
+            <span>OSRM · APAC · INMET · Defesa Civil PE</span>
+          </div>
+        </div>
+      )}
 
       {error && <p className="route-error" role="alert">{error}</p>}
 
