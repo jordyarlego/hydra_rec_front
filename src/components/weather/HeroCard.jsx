@@ -12,6 +12,22 @@ function displayCondition(condition, isNight) {
   return 'Tempestade à noite'
 }
 
+function isRecifeNightNow() {
+  const hour = Number(new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Recife',
+    hour: '2-digit',
+    hour12: false,
+  }).format(new Date()))
+
+  return hour < 5 || hour >= 18
+}
+
+function resolveIsNight(current) {
+  if (current?.is_day === 0 && !isRecifeNightNow()) return false
+  if (current?.is_day === 1 && isRecifeNightNow()) return true
+  return current?.is_day === 0
+}
+
 /* ════════════════════════════════════════════════════
    HeroCard — cabeçalho do bairro com temp gigante + score
    Props derivam diretamente do useDashboard:
@@ -31,7 +47,7 @@ export function HeroCard({ bairro, condition, current, risk, light = false, onEx
   const wind     = Math.round(current.wind_speed_10m ?? 0)
   const windDeg  = current.wind_direction_10m ?? 0
   const precip   = current.precipitation ?? 0
-  const isNight  = current.is_day === 0
+  const isNight  = resolveIsNight(current)
   const conditionLabel = displayCondition(condition, isNight)
   const rawValues = risk.rawValues || risk.raw_values || {}
   const rajada   = Math.round(rawValues.rajadaVento ?? rawValues.rajada_vento ?? wind + 8)
