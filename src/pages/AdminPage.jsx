@@ -7,6 +7,7 @@ import { AdminReportDetail } from '../components/admin/AdminReportDetail.jsx'
 import { AdminTickets } from '../components/admin/AdminTickets.jsx'
 import { AdminMetrics } from '../components/admin/AdminMetrics.jsx'
 import OfficialDataStatus from '../components/admin/OfficialDataStatus.jsx'
+import OfficialDataCoverage from '../components/admin/OfficialDataCoverage.jsx'
 import ExportPanel from '../components/admin/ExportPanel.jsx'
 
 function currentSection() {
@@ -80,6 +81,7 @@ export function AdminPage() {
       {section === 'metrics' && <AdminMetrics />}
       {section === 'official' && (
         <section className="admin-section">
+          <OfficialDataCoverage />
           <OfficialDataStatus />
           <ExportPanel />
         </section>

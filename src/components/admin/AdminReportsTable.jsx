@@ -10,10 +10,10 @@ function shortId(id = '') {
 }
 
 const BUCKET_META = {
-  revisar:       { label: 'Precisa de você', tone: 'warn',    description: 'Reports na zona cinzenta da IA.' },
-  filtrado:      { label: 'Filtrados pela IA', tone: 'danger', description: 'Provável foto inválida ou não-urbana.' },
-  auto_validado: { label: 'Auto-validados', tone: 'success',  description: 'IA viu coerência alta. Aprove em lote.' },
-  sem_bucket:    { label: 'Sem classificação', tone: 'muted', description: 'Reports antigos (pré-IA v2).' },
+  revisar:       { label: 'Para você decidir',  tone: 'warn',    description: 'A IA achou coerente, mas pediu um humano pra confirmar.' },
+  filtrado:      { label: 'Filtrados pela IA', tone: 'danger',  description: 'Foto não parece um problema urbano real. Confirme em lote.' },
+  auto_validado: { label: 'Prontos pra chamado', tone: 'success', description: 'A IA viu evidência forte. Você pode aprovar todos de uma vez.' },
+  sem_bucket:    { label: 'Sem análise',        tone: 'muted',  description: 'Reports antigos enviados antes da IA v2.' },
 }
 
 function scoreLabel(score) {
@@ -79,8 +79,8 @@ export function AdminReportsTable({ onSelect, selectedId }) {
     <section className="admin-section">
       <div className="admin-section-head">
         <div>
-          <h1>Fila de triagem</h1>
-          <p>A IA pré-classifica cada report em 3 buckets. Você decide o que fazer com cada um.</p>
+          <h1>Triagem de reports</h1>
+          <p>A IA olha cada report enviado pela população e separa em 3 montes. Você decide o que fazer com cada um.</p>
         </div>
         <button type="button" className="btn-secondary admin-icon-button admin-compact-action" onClick={() => { load(); loadCounts() }}>
           <ArrowClockwise size={16} weight="bold" aria-hidden="true" />

@@ -8,36 +8,39 @@ import {
 } from '@phosphor-icons/react'
 import { adminFetch, adminFetchJson } from '../../lib/adminFetch.js'
 import { TicketCreateForm } from './TicketCreateForm.jsx'
+import { SuccessOverlay } from '../common/SuccessOverlay.jsx'
 
 // ───── Helpers UI ────────────────────────────────────────────────────
 function verdict(score) {
-  if (score == null) return { label: 'Sem análise', tone: 'na', justification: 'Nenhuma análise automática disponível ainda.' }
+  if (score == null) {
+    return { label: 'Aguardando análise', tone: 'na', justification: 'A IA ainda está processando este report.' }
+  }
   const pct = Math.round(score * 100)
   if (score < 0.20) {
     return {
       label: `Suspeito · ${pct}%`,
       tone: 'suspeito',
-      justification: 'Vision IA não reconheceu cena urbana ou confidence muito baixa.',
+      justification: 'A IA não reconheceu um problema urbano na foto, ou a foto está difícil de identificar.',
     }
   }
   if (score < 0.50) {
     return {
-      label: `Inconclusivo · ${pct}%`,
+      label: `Pouca evidência · ${pct}%`,
       tone: 'inconclusivo',
-      justification: 'Sinais mistos: parte coerente, parte sem evidência.',
+      justification: 'Algumas pistas batem, mas faltam evidências fortes pra confirmar.',
     }
   }
   if (score < 0.75) {
     return {
-      label: `Coerente · ${pct}%`,
+      label: `Provavelmente real · ${pct}%`,
       tone: 'coerente',
-      justification: 'Foto + clima + descrição batem entre si.',
+      justification: 'Foto, clima e descrição combinam — IA acha que é um problema real.',
     }
   }
   return {
-    label: `Alta confiança · ${pct}%`,
+    label: `Confirmado · ${pct}%`,
     tone: 'alta',
-    justification: 'Vision IA + dados oficiais reforçam o report.',
+    justification: 'Foto urbana clara + clima compatível + dados oficiais reforçam o report.',
   }
 }
 
@@ -64,24 +67,25 @@ const ORG_BY_TYPE = {
 }
 
 const REJECT_REASONS = [
-  { key: 'duplicado',    label: 'Duplicado' },
-  { key: 'foto_invalida', label: 'Foto inválida (não é problema urbano)' },
-  { key: 'fora_escopo',  label: 'Fora de escopo' },
-  { key: 'trote',        label: 'Trote / brincadeira' },
+  { key: 'duplicado',    label: 'Já tem outro report igual aqui' },
+  { key: 'foto_invalida', label: 'Foto não mostra problema urbano' },
+  { key: 'fora_escopo',  label: 'Fora do que a plataforma atende' },
+  { key: 'trote',        label: 'Trote ou brincadeira' },
 ]
 
 function formatRain(rain1h, rain24h) {
   const r1 = Number(rain1h)
   const r24 = Number(rain24h)
-  if (Number.isFinite(r1) && r1 > 0) return `${r1.toFixed(1).replace('.', ',')} mm na última hora`
-  if (Number.isFinite(r24) && r24 > 0) return `${r24.toFixed(1).replace('.', ',')} mm nas últimas 24h`
-  return 'Sem chuva relevante registrada'
+  if (Number.isFinite(r1) && r1 > 0) return `${r1.toFixed(1).replace('.', ',')} mm de chuva na última hora`
+  if (Number.isFinite(r24) && r24 > 0) return `${r24.toFixed(1).replace('.', ',')} mm de chuva nas últimas 24h`
+  return 'Não estava chovendo quando o report foi enviado.'
 }
 
 // ───── Componente ────────────────────────────────────────────────────
 export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets }) {
   const [report, setReport] = useState(null)
   const [duplicates, setDuplicates] = useState([])
+  const [addressData, setAddressData] = useState(null)
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
@@ -89,10 +93,11 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
   const [mode, setMode] = useState('idle') // idle | validate | flag | reject
   const [flagNote, setFlagNote] = useState('')
   const [rejectReason, setRejectReason] = useState('')
+  const [success, setSuccess] = useState(null) // {title, subtitle} | null
 
   useEffect(() => {
     if (!reportId) {
-      setReport(null); setDuplicates([]); setMode('idle')
+      setReport(null); setDuplicates([]); setAddressData(null); setMode('idle')
       setError(null); setMessage(null)
       setFlagNote(''); setRejectReason('')
       return
@@ -100,15 +105,19 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
     setError(null); setMessage(null)
     setMode('idle')
     setFlagNote(''); setRejectReason('')
+    setAddressData(null)
 
     adminFetchJson(`/api/admin/reports/${reportId}`)
       .then(data => setReport(data))
       .catch(err => setError(err.message))
 
-    // Duplicates em paralelo — falhas silenciosas
+    // Duplicates + endereço em paralelo — falhas silenciosas
     adminFetchJson(`/api/admin/reports/${reportId}/duplicates`)
       .then(d => setDuplicates(d.data || []))
       .catch(() => setDuplicates([]))
+    adminFetchJson(`/api/admin/reports/${reportId}/address`)
+      .then(setAddressData)
+      .catch(() => setAddressData(null))
   }, [reportId])
 
   if (!reportId) return null
@@ -128,13 +137,13 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
   async function handleFlag() {
     setError(null)
     if (!flagNote.trim() || flagNote.trim().length < 8) {
-      setError('Descreva o motivo da revisão (mín. 8 caracteres).')
+      setError('Descreva sua dúvida (no mínimo 8 caracteres).')
       return
     }
     try {
       await patchReport({ status: 'flagged', ai_validation_notes: flagNote, bucket: 'revisar' })
-      setMessage('Report marcado para revisão de campo.')
       setMode('idle')
+      setSuccess({ title: 'Enviado pra reanálise', subtitle: 'A equipe vai ver sua dúvida e decidir.' })
       onChanged?.()
     } catch (e) { setError(e.message) }
   }
@@ -151,8 +160,8 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
         bucket: 'filtrado',
         rejection_reason: rejectReason,
       })
-      setMessage('Report rejeitado.')
       setMode('idle')
+      setSuccess({ title: 'Report rejeitado', subtitle: 'Foi tirado da fila e marcado como inválido.' })
       onChanged?.()
     } catch (e) { setError(e.message) }
   }
@@ -162,15 +171,18 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
     try {
       const res = await adminFetch(`/api/admin/reports/${reportId}/aggregate-to/${ticketId}`, { method: 'POST' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setMessage(`Agregado ao chamado #${ticketId.slice(0, 8)}.`)
+      setSuccess({ title: 'Juntado ao chamado existente', subtitle: `Vinculado a #${ticketId.slice(0, 8)}.` })
       onChanged?.()
     } catch (e) { setError(e.message) }
   }
 
   function onTicketCreated(ticket) {
-    setMessage(`Chamado #${ticket.id?.slice(0, 8) || ''} criado e vinculado.`)
     setMode('idle')
     setReport(prev => prev ? { ...prev, ticket_id: ticket.id, status: 'validated' } : prev)
+    setSuccess({
+      title: 'Chamado criado!',
+      subtitle: `#${ticket.id?.slice(0, 8) || ''} foi gerado. Ele aparece agora na aba Chamados.`,
+    })
     onChanged?.()
   }
 
@@ -207,8 +219,8 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
     <aside className="admin-detail">
       <header className="admin-detail-head">
         <div>
-          <h2>Triagem do report</h2>
-          <p>3 caminhos: validar e gerar chamado, marcar pra revisão, ou rejeitar.</p>
+          <h2>Detalhe do report</h2>
+          <p>Você tem 3 caminhos: gerar um chamado, pedir reanálise da equipe, ou rejeitar.</p>
         </div>
         <button type="button" className="modal-close" onClick={onClose} aria-label="Fechar">
           <X size={17} weight="bold" aria-hidden="true" />
@@ -237,18 +249,41 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
           <small>{v.justification}</small>
         </div>
         <div className="admin-ai-grid">
-          <span>Prioridade sugerida</span>
-          <strong>{priority ? `${priorityLabel(priority.priority)} (${priority.score}/100)` : 'Calculando…'}</strong>
-          <span>Órgão destino</span>
+          <span>Urgência sugerida</span>
+          <strong>{priority ? `${priorityLabel(priority.priority)} · ${priority.score}/100` : 'Calculando…'}</strong>
+          <span>Quem deve resolver</span>
           <strong className="org-suggestion">
             <Buildings size={14} weight="bold" aria-hidden="true" /> {orgLabel}
           </strong>
-          <span>Comunidade</span>
-          <strong>↑ {report.likes_up ?? 0}  ↓ {report.likes_down ?? 0}</strong>
+          <span>Apoio da comunidade</span>
+          <strong>👍 {report.likes_up ?? 0}  👎 {report.likes_down ?? 0}</strong>
         </div>
       </div>
 
       {report.description && <p className="admin-description">{report.description}</p>}
+
+      {/* Endereço resolvido (Nominatim) + pontos de referência */}
+      {addressData?.address?.full_address && (
+        <div className="admin-address-card">
+          <strong>📍 Endereço aproximado</strong>
+          <span>
+            {addressData.address.street
+              ? `${addressData.address.street}${addressData.address.number ? ', ' + addressData.address.number : ''}`
+              : addressData.address.full_address}
+            {addressData.address.neighborhood && ` — ${addressData.address.neighborhood}`}
+          </span>
+          {addressData.landmarks?.length > 0 && (
+            <div className="admin-landmarks">
+              <small>Pontos de referência por perto:</small>
+              <ul>
+                {addressData.landmarks.slice(0, 3).map((l, i) => (
+                  <li key={i}><strong>{l.name}</strong> <em>({l.kind})</em></li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {weather && (
         <p className="admin-weather">
@@ -265,12 +300,12 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
         <div className="dup-banner" role="alert">
           <Stack size={18} weight="bold" aria-hidden="true" />
           <div>
-            <strong>Possível duplicata detectada</strong>
+            <strong>Outro report parecido por perto</strong>
             <small>
-              {duplicates[0].distance_m}m daqui, mesmo tipo, há{' '}
+              A {duplicates[0].distance_m}m daqui, do mesmo tipo, enviado{' '}
               {duplicates[0].created_at
                 ? new Date(duplicates[0].created_at).toLocaleString('pt-BR')
-                : 'pouco tempo'}.
+                : 'há pouco tempo'}. Provavelmente é o mesmo problema.
             </small>
           </div>
           {duplicates[0].ticket_id ? (
@@ -279,10 +314,10 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
               className="btn-secondary btn-mini"
               onClick={() => handleAggregate(duplicates[0].ticket_id)}
             >
-              Agregar ao chamado existente
+              Juntar ao chamado existente
             </button>
           ) : (
-            <small className="dup-no-ticket">(sem chamado vinculado ainda)</small>
+            <small className="dup-no-ticket">(ainda sem chamado aberto)</small>
           )}
         </div>
       )}
@@ -313,19 +348,22 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
           />
         ) : mode === 'flag' ? (
           <div className="decision-form">
+            <p className="decision-form-help">
+              O report fica numa lista <strong>"Para reanálise"</strong> visível pros outros analistas da plataforma. Use quando você tem dúvida e quer um segundo olhar antes de gerar chamado.
+            </p>
             <label className="form-field">
-              <span className="form-label">Por que precisa de revisão de campo?</span>
+              <span className="form-label">Sua dúvida (será vista por quem fizer a reanálise)</span>
               <textarea
                 value={flagNote}
                 onChange={e => setFlagNote(e.target.value)}
                 rows={3}
-                placeholder="Ex.: foto da via mas equipe precisa confirmar se ainda está alagada."
+                placeholder="Ex.: foto mostra a via mas não sei se ainda está alagada agora."
                 autoFocus
               />
             </label>
             <div className="decision-actions">
               <button type="button" className="btn-secondary btn-mini" onClick={() => setMode('idle')}>Cancelar</button>
-              <button type="button" className="btn-primary btn-warn" onClick={handleFlag}>Marcar pra revisão</button>
+              <button type="button" className="btn-primary btn-warn" onClick={handleFlag}>Enviar pra reanálise</button>
             </div>
           </div>
         ) : mode === 'reject' ? (
@@ -356,22 +394,25 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
               type="button"
               className="btn-decision btn-decision-validate"
               onClick={() => setMode('validate')}
+              title="Confirma que é um problema real e cria um chamado pra equipe responsável"
             >
               <CheckCircle size={18} weight="bold" aria-hidden="true" />
-              Validar e gerar chamado
+              Aprovar e gerar chamado
             </button>
             <button
               type="button"
               className="btn-decision btn-decision-flag"
               onClick={() => setMode('flag')}
+              title="Marca pra outro analista da equipe interna conferir antes de decidir"
             >
               <MagnifyingGlass size={18} weight="bold" aria-hidden="true" />
-              Marcar pra revisão de campo
+              Pedir reanálise da equipe
             </button>
             <button
               type="button"
               className="btn-decision btn-decision-reject"
               onClick={() => setMode('reject')}
+              title="Descarta o report (você precisa escolher o motivo)"
             >
               <XCircle size={18} weight="bold" aria-hidden="true" />
               Rejeitar
@@ -382,11 +423,20 @@ export function AdminReportDetail({ reportId, onClose, onChanged, onOpenTickets 
 
       {report.audit?.length > 0 && (
         <div className="admin-audit">
-          <h3>Auditoria</h3>
+          <h3>Histórico</h3>
           {report.audit.map(item => (
             <p key={item.id}><span>{item.action}</span> {new Date(item.created_at).toLocaleString('pt-BR')}</p>
           ))}
         </div>
+      )}
+
+      {success && (
+        <SuccessOverlay
+          title={success.title}
+          subtitle={success.subtitle}
+          duration={1600}
+          onDone={() => setSuccess(null)}
+        />
       )}
     </aside>
   )

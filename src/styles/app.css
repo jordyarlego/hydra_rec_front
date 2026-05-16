@@ -1365,10 +1365,16 @@ select option { background: #0f1118; color: #fff; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
   transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast);
 }
-.emoji-option:hover {
-  transform: translateY(-2px);
-  border-color: rgba(232,160,48,.28);
-  background: linear-gradient(180deg, rgba(232,160,48,.095), rgba(255,255,255,.035));
+/* Hover só em devices com mouse real (evita "ficar grudado" em mobile). */
+@media (hover: hover) and (pointer: fine) {
+  .emoji-option:hover {
+    transform: translateY(-2px);
+    border-color: rgba(232,160,48,.28);
+    background: linear-gradient(180deg, rgba(232,160,48,.095), rgba(255,255,255,.035));
+  }
+  .emoji-option:hover .emoji-option-art {
+    transform: translateY(-3px) scale(1.04);
+  }
 }
 .emoji-option.active {
   border-color: rgba(232,160,48,.48);
@@ -1402,9 +1408,6 @@ select option { background: #0f1118; color: #fff; }
   pointer-events: none;
   user-select: none;
   filter: drop-shadow(0 10px 12px rgba(0,0,0,.26));
-}
-.emoji-option:hover .emoji-option-art {
-  transform: translateY(-3px) scale(1.04);
 }
 .emoji-option.active .emoji-option-art {
   transform: translateY(-4px) scale(1.08);
@@ -4306,3 +4309,463 @@ a:hover { color: #f5b347; }
   .kanban-board { grid-template-columns: 1fr; }
   .batch-approve-head { grid-template-columns: 1fr; text-align: center; }
 }
+
+/* ═════════════════════════════════════════════════════════════════
+   CICLO 2 — UX cidadão + admin
+   ═════════════════════════════════════════════════════════════════ */
+
+/* ── Success overlay (report enviado, ações admin) ──────── */
+.success-overlay {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,.55);
+  display: grid; place-items: center;
+  animation: success-fade-in .18s ease-out;
+}
+@keyframes success-fade-in { from { opacity: 0 } to { opacity: 1 } }
+.success-card {
+  background: var(--surface-1, #1f2026);
+  border-radius: 18px;
+  padding: 28px 36px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  min-width: 260px; max-width: 360px;
+  box-shadow: 0 30px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08);
+  animation: success-pop .35s cubic-bezier(.2,.9,.2,1);
+  text-align: center;
+}
+.app-root.light .success-card { background: #fff; }
+@keyframes success-pop {
+  from { transform: scale(.7); opacity: 0 }
+  to   { transform: scale(1);  opacity: 1 }
+}
+.success-card strong { font-size: 16px; margin-top: 4px; }
+.success-card small { font-size: 12px; opacity: .75; line-height: 1.4; max-width: 280px; }
+.success-check-ring {
+  display: grid; place-items: center;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(102,187,106,.16);
+  color: #66bb6a;
+  animation: success-check-pulse 1.2s ease-out;
+}
+@keyframes success-check-pulse {
+  0%   { transform: scale(.4); opacity: 0; box-shadow: 0 0 0 0 rgba(102,187,106,.6); }
+  50%  { transform: scale(1.08); opacity: 1; box-shadow: 0 0 0 12px rgba(102,187,106,0); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Quick Report Sheet: hierarquia nova ────────────────── */
+.quick-section-prompt { padding-top: var(--space-3); }
+.quick-description-hero {
+  background: linear-gradient(180deg, rgba(232,160,48,.10), rgba(232,160,48,.04));
+  border: 1px solid rgba(232,160,48,.28);
+  border-radius: 14px;
+  padding: var(--space-3);
+}
+.app-root.light .quick-description-hero {
+  background: rgba(201,120,32,.06);
+  border-color: rgba(201,120,32,.28);
+}
+.form-label-hero {
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--brand-fg, inherit);
+  margin-bottom: 6px;
+}
+.quick-description-input-hero {
+  font-size: 15px !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  background: rgba(0,0,0,.18) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: inherit !important;
+  width: 100%;
+}
+.app-root.light .quick-description-input-hero {
+  background: #fff !important;
+  border-color: rgba(0,0,0,.16) !important;
+}
+.quick-description-hint {
+  display: block; text-align: right;
+  font-size: 10px; opacity: .55; margin-top: 4px;
+}
+
+/* ── Hover só em devices com mouse pra severity também ─── */
+@media (hover: hover) and (pointer: fine) {
+  .severity-btn:hover {
+    transform: translateY(-1px);
+    border-color: currentColor;
+  }
+}
+
+
+/* ── Admin: footer da sidebar (theme toggle + sair) ───── */
+.admin-sidebar { display: flex; flex-direction: column; }
+.admin-sidebar-footer {
+  margin-top: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.admin-theme-toggle, .admin-signout {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 8px;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.admin-theme-toggle:hover, .admin-signout:hover {
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.18);
+}
+.app-root.light .admin-sidebar-footer { border-top-color: rgba(0,0,0,.08); }
+.app-root.light .admin-theme-toggle,
+.app-root.light .admin-signout {
+  border-color: rgba(0,0,0,.12);
+}
+.app-root.light .admin-theme-toggle:hover,
+.app-root.light .admin-signout:hover {
+  background: rgba(0,0,0,.04);
+}
+
+/* ── Help text dentro de formulários de decisão ────────── */
+.decision-form-help {
+  font-size: 12px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,.04);
+  border-radius: 6px;
+  margin: 0 0 var(--space-2) 0;
+  line-height: 1.5;
+  color: rgba(255,255,255,.75);
+}
+.app-root.light .decision-form-help {
+  background: rgba(0,0,0,.04);
+  color: rgba(0,0,0,.72);
+}
+
+/* ── LIGHT THEME: garantir contraste em TODO o admin ──── */
+.app-root.light .admin-page,
+.app-root.light .admin-content,
+.app-root.light .admin-section,
+.app-root.light .admin-detail {
+  background: #fafafa;
+  color: #1a1a1a;
+}
+.app-root.light .admin-sidebar {
+  background: #f0f0f2;
+  color: #1a1a1a;
+  border-right: 1px solid rgba(0,0,0,.06);
+}
+.app-root.light .admin-nav-item {
+  color: rgba(0,0,0,.78);
+}
+.app-root.light .admin-nav-item:hover {
+  background: rgba(0,0,0,.04);
+}
+.app-root.light .admin-nav-item.active {
+  background: rgba(0,0,0,.07);
+  color: #000;
+}
+.app-root.light .admin-detail {
+  background: #fff;
+  border-left: 1px solid rgba(0,0,0,.08);
+}
+.app-root.light .admin-section-head h1,
+.app-root.light .admin-section-head h2,
+.app-root.light .admin-detail-head h2 {
+  color: #1a1a1a;
+}
+.app-root.light .admin-section-head p,
+.app-root.light .admin-detail-head p {
+  color: rgba(0,0,0,.65);
+}
+.app-root.light .admin-ai-box {
+  background: rgba(0,0,0,.03);
+  border-color: rgba(0,0,0,.08);
+}
+.app-root.light .admin-ai-grid span { color: rgba(0,0,0,.6); }
+.app-root.light .admin-ai-grid strong { color: #1a1a1a; }
+.app-root.light .admin-report-card {
+  background: #fff;
+  border-color: rgba(0,0,0,.08);
+  color: #1a1a1a;
+}
+.app-root.light .admin-report-card:hover {
+  border-color: rgba(0,0,0,.18);
+}
+.app-root.light .admin-report-card.is-selected {
+  background: rgba(232,160,48,.10);
+  border-color: rgba(232,160,48,.45);
+}
+.app-root.light .admin-report-card small { color: rgba(0,0,0,.55); }
+.app-root.light .admin-report-card em { color: rgba(0,0,0,.7); font-style: normal; }
+.app-root.light .admin-priority-strip { background: rgba(0,0,0,.04); }
+.app-root.light .admin-priority-strip strong { color: #1a1a1a; }
+.app-root.light .admin-filters select,
+.app-root.light .admin-filters input {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.14);
+  color: #1a1a1a;
+}
+.app-root.light .admin-description,
+.app-root.light .admin-weather { color: rgba(0,0,0,.75); }
+.app-root.light .admin-empty { color: rgba(0,0,0,.5); }
+.app-root.light .form-field span.form-label { color: rgba(0,0,0,.7); }
+.app-root.light .form-field input,
+.app-root.light .form-field textarea,
+.app-root.light .form-field select {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.14);
+  color: #1a1a1a;
+}
+
+/* Verdict banner — light overrides */
+.app-root.light .verdict-suspeito     { background: rgba(239,83,80,.10);  color: #c62828; }
+.app-root.light .verdict-inconclusivo { background: rgba(245,124,0,.10);  color: #e65100; }
+.app-root.light .verdict-coerente     { background: rgba(2,136,209,.10);  color: #0277bd; }
+.app-root.light .verdict-alta         { background: rgba(46,125,50,.10);  color: #2e7d32; }
+.app-root.light .verdict-banner small { opacity: .85; }
+.app-root.light .verdict-suspeito strong,
+.app-root.light .verdict-inconclusivo strong,
+.app-root.light .verdict-coerente strong,
+.app-root.light .verdict-alta strong { color: inherit; }
+
+/* Verdict pill na lista */
+.app-root.light .verdict-suspeito     { background: rgba(239,83,80,.16);  color: #c62828; }
+.app-root.light .verdict-inconclusivo { background: rgba(245,124,0,.16);  color: #e65100; }
+.app-root.light .verdict-coerente     { background: rgba(2,136,209,.16);  color: #0277bd; }
+.app-root.light .verdict-alta         { background: rgba(46,125,50,.16);  color: #2e7d32; }
+
+/* Botões de decisão — light */
+.app-root.light .btn-decision {
+  background: #fff;
+  border-color: rgba(0,0,0,.12);
+}
+.app-root.light .btn-decision-validate { color: #2e7d32; border-color: rgba(46,125,50,.35); }
+.app-root.light .btn-decision-flag     { color: #e65100; border-color: rgba(245,124,0,.35); }
+.app-root.light .btn-decision-reject   { color: #c62828; border-color: rgba(239,83,80,.35); }
+
+/* Buckets — light */
+.app-root.light .bucket-warn strong    { color: #e65100; }
+.app-root.light .bucket-danger strong  { color: #c62828; }
+.app-root.light .bucket-success strong { color: #2e7d32; }
+.app-root.light .dup-banner {
+  background: rgba(245,124,0,.10);
+  border-color: rgba(245,124,0,.35);
+}
+.app-root.light .dup-banner small { color: rgba(0,0,0,.7); }
+.app-root.light .dup-no-ticket { color: rgba(0,0,0,.5); }
+
+/* OCP panel light */
+.app-root.light .ocp-panel { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.08); }
+.app-root.light .ocp-heading, .app-root.light .ocp-label, .app-root.light .ocp-value { color: #1a1a1a; }
+.app-root.light .ocp-summary, .app-root.light .ocp-notes { color: rgba(0,0,0,.65); }
+.app-root.light .ocp-chip { background: rgba(0,0,0,.06); color: #1a1a1a; }
+.app-root.light .ocp-chip--rpa { background: rgba(232,160,48,.18); color: #c97820; }
+
+/* ODH light */
+.app-root.light .odh-card { background: #fff; border: 1px solid rgba(0,0,0,.08); color: #1a1a1a; }
+.app-root.light .odh-title { color: #1a1a1a; }
+.app-root.light .odh-subtitle { color: rgba(0,0,0,.65); }
+.app-root.light .odh-table { color: #1a1a1a; }
+.app-root.light .odh-import-msg { color: #1a1a1a; }
+
+/* Toast (sessão expirada) light */
+.app-root.light .admin-toast-warning {
+  background: #f57c00;
+  color: #fff;
+}
+
+
+/* ── Kanban v2: 3 colunas + accordion fechados ─────────── */
+.kanban-board-3col { grid-template-columns: repeat(3, 1fr); }
+.kanban-col-head > div { display: flex; flex-direction: column; gap: 2px; }
+.kanban-col-hint { font-size: 10px; color: rgba(255,255,255,.55); }
+.app-root.light .kanban-col-hint { color: rgba(0,0,0,.55); }
+
+.kanban-closed-accordion {
+  margin-top: var(--space-4);
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md, 10px);
+}
+.app-root.light .kanban-closed-accordion {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.06);
+}
+.kanban-closed-toggle {
+  width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+.kanban-closed-toggle:hover { background: rgba(255,255,255,.04); }
+.app-root.light .kanban-closed-toggle:hover { background: rgba(0,0,0,.03); }
+.kanban-closed-caret { margin-left: auto; font-size: 10px; opacity: .55; }
+.kanban-closed-body {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.kanban-closed-card {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 6px;
+  opacity: .8;
+}
+.app-root.light .kanban-closed-card {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.06);
+}
+.kanban-closed-card img { width: 22px; height: 22px; }
+.kanban-closed-card strong { display: block; font-size: 12px; }
+.kanban-closed-card small { display: block; font-size: 10px; opacity: .65; }
+.kanban-closed-card .kanban-org { margin-left: auto; font-size: 10px; }
+
+@media (max-width: 1100px) {
+  .kanban-board-3col { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .kanban-board-3col { grid-template-columns: 1fr; }
+  .kanban-closed-body { grid-template-columns: 1fr; }
+}
+
+
+/* ── Admin: endereço resolvido no detalhe ──────────────── */
+.admin-address-card {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.app-root.light .admin-address-card {
+  background: rgba(0,0,0,.03);
+  border-color: rgba(0,0,0,.08);
+}
+.admin-address-card strong { font-size: 12px; opacity: .75; }
+.admin-landmarks { margin-top: 6px; font-size: 11px; }
+.admin-landmarks small { display: block; opacity: .6; margin-bottom: 3px; }
+.admin-landmarks ul { list-style: none; padding: 0; margin: 0; }
+.admin-landmarks li { padding: 2px 0; }
+.admin-landmarks em { opacity: .65; font-style: normal; }
+
+/* ── Coverage card (bases oficiais) ────────────────────── */
+.coverage-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-md, 10px);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.app-root.light .coverage-card {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+.coverage-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  margin-bottom: var(--space-3);
+}
+.coverage-head strong { font-size: 14px; display: block; }
+.coverage-head small { font-size: 11px; opacity: .65; display: block; margin-top: 2px; }
+
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.coverage-stat {
+  background: rgba(255,255,255,.03);
+  border-radius: 8px;
+  padding: var(--space-2);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.app-root.light .coverage-stat { background: rgba(0,0,0,.02); }
+.coverage-stat strong { font-size: 24px; line-height: 1; margin-top: 4px; }
+.coverage-stat small { font-size: 11px; opacity: .7; }
+.coverage-rpas { font-size: 10px; opacity: .55; margin-top: 4px; }
+
+.coverage-details {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,.02);
+  border-radius: 6px;
+}
+.app-root.light .coverage-details { background: rgba(0,0,0,.02); }
+.coverage-details summary { cursor: pointer; font-size: 12px; padding: 4px 0; }
+.coverage-details ul { list-style: none; padding: 0; margin: 8px 0 0 0; font-size: 12px; }
+.coverage-details li { padding: 2px 0; }
+.coverage-sample { font-size: 11px; line-height: 1.6; opacity: .75; }
+.coverage-warning {
+  margin-top: 8px; padding: 8px 12px;
+  background: rgba(255,183,77,.12);
+  border: 1px solid rgba(255,183,77,.32);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.app-root.light .coverage-warning {
+  background: rgba(245,124,0,.08);
+  border-color: rgba(245,124,0,.30);
+  color: rgba(0,0,0,.8);
+}
+
+@media (max-width: 700px) {
+  .coverage-grid { grid-template-columns: 1fr; }
+}
+
+
+/* ── Dispatch modal ────────────────────────────────────── */
+.dispatch-modal {
+  max-width: 620px;
+  width: calc(100vw - 32px);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+.dispatch-help {
+  padding: 10px 12px;
+  background: rgba(79,195,247,.10);
+  border: 1px solid rgba(79,195,247,.25);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: var(--space-2) 0 var(--space-3);
+}
+.app-root.light .dispatch-help {
+  background: rgba(2,136,209,.08);
+  border-color: rgba(2,136,209,.25);
+  color: rgba(0,0,0,.78);
+}
+.dispatch-contacts {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: var(--space-3);
+}
+.dispatch-contact {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,.06);
+  border-radius: 999px;
+  font-size: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+.app-root.light .dispatch-contact { background: rgba(0,0,0,.05); }
+.dispatch-contact:hover { background: rgba(232,160,48,.18); }
+.dispatch-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: var(--space-3);
+  justify-content: flex-end;
+}
+

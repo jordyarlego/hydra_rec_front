@@ -5,7 +5,8 @@ import { api } from '../../lib/api.js'
 import { CATEGORIES, CATEGORY_BY_ID } from '../../data/report_categories.js'
 import { EmojiCategoryPicker } from './EmojiCategoryPicker.jsx'
 import { PhotoCapture } from './PhotoCapture.jsx'
-import { MapPin, PaperPlaneTilt, X } from '@phosphor-icons/react'
+import { SuccessOverlay } from '../common/SuccessOverlay.jsx'
+import { MapPin, PaperPlaneTilt, X, ChatCircleText } from '@phosphor-icons/react'
 
 const MAX_DESCRIPTION = 140
 const SEVERITIES = [
@@ -64,12 +65,16 @@ export function QuickReportSheet({
 }) {
   const [tipo, setTipo] = useState('alagamento')
   const [severidade, setSeveridade] = useState('moderado')
+  // Marca que o user mexeu manualmente — IA não sobrescreve depois disso
+  const [tipoLocked, setTipoLocked] = useState(false)
+  const [severidadeLocked, setSeveridadeLocked] = useState(false)
   const [descricao, setDescricao] = useState('')
   const [photo, setPhoto] = useState(null)
   const [weatherHint, setWeatherHint] = useState(null)
   const [assistantQuestion, setAssistantQuestion] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [showSuccess, setShowSuccess] = useState(false)
   const trapRef = useFocusTrap(open, onClose)
 
   const canSubmit = userLat != null && userLon != null && reportLat != null && reportLon != null
@@ -88,6 +93,8 @@ export function QuickReportSheet({
     setAssistantQuestion(null)
     setTipo('alagamento')
     setSeveridade('moderado')
+    setTipoLocked(false)
+    setSeveridadeLocked(false)
 
     let cancelled = false
     if (reportLat != null && reportLon != null) {
@@ -97,21 +104,22 @@ export function QuickReportSheet({
           setAssistantQuestion(data.question || null)
           if (data.suggested_category && CATEGORY_BY_ID[data.suggested_category]) {
             const cat = CATEGORY_BY_ID[data.suggested_category]
-            setTipo(cat.id)
-            setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+            if (!tipoLocked)        setTipo(cat.id)
+            if (!severidadeLocked)  setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
           }
           const weather = data.weather || data
           const suggested = inferCategory(weather)
           if (suggested) {
             const cat = CATEGORY_BY_ID[suggested]
-            setTipo(cat.id)
-            setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+            if (!tipoLocked)        setTipo(cat.id)
+            if (!severidadeLocked)  setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
           }
           setWeatherHint(buildWeatherHint(weather))
         })
         .catch(() => {})
     }
     return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, reportLat, reportLon])
 
   if (!open) return null
@@ -119,7 +127,16 @@ export function QuickReportSheet({
   function handleCategory(cat) {
     soundMgr.playClick()
     setTipo(cat.id)
-    setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+    setTipoLocked(true)
+    // Severidade sugerida pela categoria — só aplica se user ainda não mexeu
+    if (!severidadeLocked) {
+      setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+    }
+  }
+
+  function handleSeverityChange(value) {
+    setSeveridade(value)
+    setSeveridadeLocked(true)
   }
 
   async function handleSubmit(e) {
@@ -143,7 +160,8 @@ export function QuickReportSheet({
       if (descricao.trim()) form.append('descricao', descricao.trim())
       if (photo) form.append('photo', photo)
       await onSubmit(form, { lat: reportLat, lon: reportLon })
-      onClose?.()
+      // Mostra overlay de sucesso e fecha modal só depois da animação
+      setShowSuccess(true)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -184,6 +202,44 @@ export function QuickReportSheet({
         </header>
 
         <div className="quick-sheet-scroll">
+          {/* 1. O QUE VOCÊ ESTÁ VENDO — destaque máximo */}
+          <section className="quick-section quick-section-prompt">
+            <label className="form-field quick-description-field quick-description-hero">
+              <span className="form-label form-label-hero">
+                <ChatCircleText size={16} weight="bold" aria-hidden="true" />
+                O que você está vendo?
+              </span>
+              <input
+                type="text"
+                value={descricao}
+                onChange={e => setDescricao(e.target.value.slice(0, MAX_DESCRIPTION))}
+                placeholder="Descreva em uma frase. Ex.: água cobrindo a faixa da direita."
+                maxLength={MAX_DESCRIPTION}
+                className="quick-description-input-hero"
+                autoFocus
+              />
+              <small className="quick-description-hint">{descricao.length}/{MAX_DESCRIPTION}</small>
+            </label>
+            {assistantQuestion && <div className="quick-assistant-question">{assistantQuestion}</div>}
+          </section>
+
+          {/* 2. FOTO — IA já analisa enquanto preenche */}
+          <section className="quick-section">
+            <span className="form-label">Foto (opcional, mas ajuda muito)</span>
+            <PhotoCapture
+              file={photo}
+              onChange={setPhoto}
+              onAiSuggest={(typeId) => {
+                const cat = CATEGORY_BY_ID[typeId]
+                if (!cat) return
+                // Respeita override manual do usuário
+                if (!tipoLocked)       setTipo(cat.id)
+                if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+              }}
+            />
+          </section>
+
+          {/* 3. CATEGORIA */}
           <section className="quick-section quick-section-hero">
             <div className="quick-category-summary" aria-live="polite">
               <span className="quick-category-icon" aria-hidden="true">
@@ -202,29 +258,17 @@ export function QuickReportSheet({
             />
           </section>
 
+          {/* 4. SEVERIDADE */}
           <section className="quick-section">
-            <span className="form-label">Registro visual</span>
-            <PhotoCapture
-              file={photo}
-              onChange={setPhoto}
-              onAiSuggest={(typeId) => {
-                const cat = CATEGORY_BY_ID[typeId]
-                if (!cat) return
-                setTipo(cat.id)
-                setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
-              }}
-            />
-          </section>
-
-          <section className="quick-section">
-            <span className="form-label">Severidade</span>
+            <span className="form-label">O quão grave parece?</span>
             <div className="severity-picker">
               {SEVERITIES.map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
                   className={`severity-btn severity-${value}${severidade === value ? ' active' : ''}`}
-                  onClick={() => setSeveridade(value)}
+                  onClick={(e) => { try { e.currentTarget.blur() } catch {} ; handleSeverityChange(value) }}
+                  aria-pressed={severidade === value}
                 >
                   <span className="severity-dot" />
                   {label}
@@ -233,19 +277,7 @@ export function QuickReportSheet({
             </div>
           </section>
 
-          <label className="form-field quick-description-field">
-            <span className="form-label">Descrição curta</span>
-            <input
-              type="text"
-              value={descricao}
-              onChange={e => setDescricao(e.target.value.slice(0, MAX_DESCRIPTION))}
-              placeholder="Ex.: água cobrindo a faixa da direita"
-              maxLength={MAX_DESCRIPTION}
-            />
-          </label>
-
           <div className="quick-context-row">
-            {assistantQuestion && <div className="quick-assistant-question">{assistantQuestion}</div>}
             {weatherHint && (
               <div className="quick-weather-hint" title="Dados em tempo real APAC/CEMADEN">
                 <span className="quick-weather-hint-badge">APAC</span>
@@ -266,6 +298,15 @@ export function QuickReportSheet({
           </button>
         </div>
       </form>
+
+      {showSuccess && (
+        <SuccessOverlay
+          title="Report enviado!"
+          subtitle="A IA já está analisando — você verá o pin no mapa em instantes."
+          duration={1800}
+          onDone={() => { setShowSuccess(false); onClose?.() }}
+        />
+      )}
     </div>
   )
 }

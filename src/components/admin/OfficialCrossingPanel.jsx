@@ -61,35 +61,35 @@ export default function OfficialCrossingPanel({ reportId }) {
 
   return (
     <section className="ocp-panel">
-      <h4 className="ocp-heading">Cruzamento urbano</h4>
-      <p className="ocp-summary">Usado para priorizar: bairro oficial, região administrativa, via próxima e reincidência.</p>
+      <h4 className="ocp-heading">Localização e histórico</h4>
+      <p className="ocp-summary">A IA usa esses dados pra calcular prioridade — quanto mais próximo de chamados oficiais antigos, mais urgente.</p>
 
       <div className="ocp-geo-row">
         {data.neighborhood && <span className="ocp-chip">{data.neighborhood}</span>}
-        {data.rpa           && <span className="ocp-chip ocp-chip--rpa">{data.rpa}</span>}
+        {data.rpa           && <span className="ocp-chip ocp-chip--rpa" title="Região Político-Administrativa do Recife">{data.rpa}</span>}
       </div>
 
       {data.nearest_road_name && (
         <p className="ocp-row">
-          <span className="ocp-label">Via mais próxima</span>
+          <span className="ocp-label">Rua mais próxima</span>
           <span className="ocp-value">{data.nearest_road_name}</span>
         </p>
       )}
 
       {data.nearest_official_request_type && (
         <p className="ocp-row">
-        <span className="ocp-label">Registro oficial próximo</span>
+        <span className="ocp-label">Já houve chamado oficial parecido</span>
           <span className="ocp-value">
             {data.nearest_official_request_type}
             {data.nearest_official_request_distance_m != null && (
-              <span className="ocp-dist"> ({data.nearest_official_request_distance_m}m)</span>
+              <span className="ocp-dist"> (a {data.nearest_official_request_distance_m}m)</span>
             )}
           </span>
         </p>
       )}
 
       <p className="ocp-row">
-        <span className="ocp-label">Recorrência na área</span>
+        <span className="ocp-label" title="Quantas vezes problemas parecidos foram reportados na mesma região recentemente">Repetição na área</span>
         <span className="ocp-value ocp-mono">{data.recurrence_score ?? 0}</span>
       </p>
 

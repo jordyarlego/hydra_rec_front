@@ -1,5 +1,6 @@
 import { HydraLogo } from '../effects/HydraLogo.jsx'
-import { ChartBar, Database, SignOut, Siren, Ticket } from '@phosphor-icons/react'
+import { ChartBar, Database, SignOut, Siren, Ticket, Sun, Moon } from '@phosphor-icons/react'
+import { useTheme } from '../../hooks/useTheme.js'
 
 const NAV = [
   ['reports', 'Triagem', Siren],
@@ -9,8 +10,9 @@ const NAV = [
 ]
 
 export function AdminLayout({ section, onSectionChange, onSignOut, children }) {
+  const { theme, toggle } = useTheme()
   return (
-    <main className="admin-page">
+    <main className={`admin-page app-root ${theme === 'light' ? 'light' : 'dark'}`}>
       <aside className="admin-sidebar">
         <HydraLogo size={30} showText />
         <nav className="admin-nav" aria-label="Admin">
@@ -26,10 +28,22 @@ export function AdminLayout({ section, onSectionChange, onSignOut, children }) {
             </button>
           ))}
         </nav>
-        <button type="button" className="admin-signout" onClick={onSignOut}>
-          <SignOut size={18} weight="bold" aria-hidden="true" />
-          Sair
-        </button>
+        <div className="admin-sidebar-footer">
+          <button
+            type="button"
+            className="admin-theme-toggle"
+            onClick={toggle}
+            aria-label={theme === 'dark' ? 'Mudar pra tema claro' : 'Mudar pra tema escuro'}
+            title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+          >
+            {theme === 'dark' ? <Sun size={16} weight="bold" /> : <Moon size={16} weight="bold" />}
+            <span>{theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+          </button>
+          <button type="button" className="admin-signout" onClick={onSignOut}>
+            <SignOut size={16} weight="bold" aria-hidden="true" />
+            Sair
+          </button>
+        </div>
       </aside>
       <section className="admin-content">{children}</section>
     </main>
