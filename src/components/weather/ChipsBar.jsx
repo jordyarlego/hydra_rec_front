@@ -1,18 +1,10 @@
 import { useRef, useEffect } from 'react'
 
-const uvLabel = u => u <= 2 ? 'Baixo' : u <= 5 ? 'Moderado' : u <= 7 ? 'Alto' : u <= 10 ? 'Muito Alto' : 'Extremo'
-const uvColor = u => u <= 2 ? '#22c55e' : u <= 5 ? '#eab308' : u <= 7 ? '#f97316' : u <= 10 ? '#ef4444' : '#a855f7'
-
-function visFromCode(code = 0) {
-  if (code === 0) return 12
-  if (code <= 2)  return 10
-  if (code === 3) return 8
-  if (code <= 48) return 2
-  if (code <= 57) return 5
-  if (code <= 67) return 4
-  if (code <= 82) return 6
-  return 2
-}
+/* ════════════════════════════════════════════════════
+   ChipsBar — métricas reais APAC
+   Removidos UV index, weather_code, visibilidade (sem fonte APAC).
+   Mostra Chuva 1h, Acumulado 24h, Umidade, Vento, Temp, Tendência.
+   ════════════════════════════════════════════════════ */
 
 function MetricChip({ label, value, color, light, hint }) {
   return (
@@ -23,14 +15,50 @@ function MetricChip({ label, value, color, light, hint }) {
   )
 }
 
-export function ChipsBar({ current, risk, light = false }) {
+function rainColor(mm) {
+  if (mm == null)  return undefined
+  if (mm >= 30)    return '#a855f7'  // severa
+  if (mm >= 10)    return '#ef4444'  // forte
+  if (mm >= 2.5)   return '#f97316'  // moderada
+  if (mm >= 0.2)   return '#eab308'  // leve
+  return undefined
+}
+
+function humidityColor(pct) {
+  if (pct == null) return undefined
+  if (pct >= 80) return '#38bdf8'
+  if (pct >= 60) return '#60a5fa'
+  if (pct >= 40) return '#22c55e'
+  return '#f97316'
+}
+
+function humidityLabel(pct) {
+  if (pct == null) return '—'
+  if (pct >= 80) return 'Muito úmido'
+  if (pct >= 60) return 'Úmido'
+  if (pct >= 40) return 'Agradável'
+  return 'Seco'
+}
+
+function trendIcon(trend) {
+  if (trend === 'subindo')  return '↑'
+  if (trend === 'descendo') return '↓'
+  return '→'
+}
+
+function trendLabel(trend) {
+  if (trend === 'subindo')  return 'Subindo'
+  if (trend === 'descendo') return 'Caindo'
+  return 'Estável'
+}
+
+export function ChipsBar({ weather, light = false }) {
   const barRef = useRef(null)
 
   useEffect(() => {
     const el = barRef.current
     if (!el) return
     let dragging = false, startX = 0, scrollLeft = 0
-
     const onDown = e => {
       dragging = true
       startX = e.pageX - el.offsetLeft
@@ -49,7 +77,6 @@ export function ChipsBar({ current, risk, light = false }) {
       const x = e.pageX - el.offsetLeft
       el.scrollLeft = scrollLeft - (x - startX)
     }
-
     el.addEventListener('mousedown', onDown)
     window.addEventListener('mouseup', onUp)
     el.addEventListener('mousemove', onMove)
@@ -60,30 +87,90 @@ export function ChipsBar({ current, risk, light = false }) {
     }
   }, [])
 
-  if (!current) return null
-  const rawValues = risk?.rawValues || risk?.raw_values || {}
+  if (!weather) return null
 
-  const uv      = Math.round(rawValues.uvIndex ?? current.uv_index ?? 0)
-  const umidade = Math.round(current.relative_humidity_2m ?? 0)
-  const vis     = visFromCode(current.weather_code)
-  const mare    = rawValues.mareAltura ?? rawValues.mare_altura ?? 1.5
-  const vento   = Math.round(current.wind_speed_10m ?? 0)
+  const rain1h   = weather.rain_1h_mm
+  const rain24h  = weather.rain_24h_mm
+  const humidity = weather.humidity_pct != null ? Math.round(weather.humidity_pct) : null
+  const wind     = weather.wind_kmh     != null ? Math.round(weather.wind_kmh)     : null
+  const temp     = weather.temp_c       != null ? Math.round(weather.temp_c)       : null
+  const trend    = weather.rain_trend   || 'estavel'
+  const source   = weather.source       || 'apac'
+  const meteoOk  = temp != null || humidity != null || wind != null
 
-  const umidadeLabel = umidade >= 80 ? 'Muito úmido' : umidade >= 60 ? 'Úmido' : umidade >= 40 ? 'Agradável' : 'Seco'
-  const umidadeColor = umidade >= 80 ? '#38bdf8' : umidade >= 60 ? '#60a5fa' : umidade >= 40 ? '#22c55e' : '#f97316'
+  const chips = []
+
+  // 1. Chuva — sempre presente porque CEMADEN cobre toda RMR
+  chips.push({
+    key: 'rain1h',
+    label: 'Chuva agora',
+    value: rain1h != null ? `${rain1h.toFixed(1)} mm/h` : 'sem leitura',
+    color: rainColor(rain1h),
+    hint: 'Pluviômetro CEMADEN mais próximo',
+  })
+
+  chips.push({
+    key: 'rain24h',
+    label: 'Acumulado 24h',
+    value: rain24h != null ? `${rain24h.toFixed(1)} mm` : 'em coleta',
+    color: rainColor(rain24h),
+    hint: 'Soma das últimas 24h. Atualiza automaticamente.',
+  })
+
+  chips.push({
+    key: 'trend',
+    label: 'Tendência',
+    value: `${trendIcon(trend)} ${trendLabel(trend)}`,
+    hint: 'Comparação com a leitura anterior do pluviômetro',
+  })
+
+  // 2. Meteo — APAC pode não ter estação meteorologia24h na RMR;
+  //    nesse caso temp/umidade vêm da climatologia (média histórica)
+  if (meteoOk) {
+    chips.push({
+      key: 'humidity',
+      label: 'Umidade',
+      value: humidity != null ? `${humidity}% · ${humidityLabel(humidity)}` : 'indisponível',
+      color: humidityColor(humidity),
+    })
+    chips.push({
+      key: 'temp',
+      label: 'Temperatura',
+      value: temp != null ? `${temp}°C` : 'indisponível',
+      hint: source === 'climatologico' ? 'Média climatológica (sem estação ativa)' : undefined,
+    })
+    chips.push({
+      key: 'wind',
+      label: 'Vento',
+      value: wind != null ? `${wind} km/h` : 'indisponível',
+    })
+  } else {
+    chips.push({
+      key: 'meteo',
+      label: 'Estação meteo',
+      value: 'sem leitura agora',
+      hint: 'Nenhuma estação meteo APAC ativa para este ponto',
+    })
+  }
 
   return (
     <div
       ref={barRef}
       className="chips-bar scroll-x"
       style={{ cursor: 'grab' }}
-      aria-label="Resumo meteorológico"
+      aria-label="Métricas APAC"
+      tabIndex={0}
     >
-      <MetricChip label="Risco de queimadura" value={`${uvLabel(uv)} (UV ${uv})`} color={uvColor(uv)} light={light} />
-      <MetricChip label="Umidade do ar"       value={`${umidade}% · ${umidadeLabel}`} color={umidadeColor} light={light} />
-      <MetricChip label="Visibilidade"        value={`${vis} km`} light={light} />
-      <MetricChip label="Nível do mar"        value={`${mare}m`} light={light} />
-      <MetricChip label="Vento"               value={`${vento} km/h`} light={light} />
+      {chips.map(c => (
+        <MetricChip
+          key={c.key}
+          label={c.label}
+          value={c.value}
+          color={c.color}
+          light={light}
+          hint={c.hint}
+        />
+      ))}
     </div>
   )
 }

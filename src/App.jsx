@@ -11,7 +11,8 @@ import { LoadingScreen } from './components/loading/LoadingScreen.jsx'
 import { Sidebar }       from './components/layout/Sidebar.jsx'
 import { MapStage }      from './components/layout/MapStage.jsx'
 import { MobileNav }     from './components/layout/MobileNav.jsx'
-import { ReportModal }   from './components/reports/ReportModal.jsx'
+import { QuickReportSheet } from './components/reports/QuickReportSheet.jsx'
+import { ReportPinPopup } from './components/reports/ReportPinPopup.jsx'
 
 import './styles/app.css'
 
@@ -58,7 +59,10 @@ export default function App() {
   const [mobileView,   setMobileView]   = useState('sidebar')
   const [reportOpen,   setReportOpen]   = useState(false)
   const [reportGps,    setReportGps]    = useState(null)
-  const [routeResult,  setRouteResult]  = useState(null)
+  const [pendingReportLatLng, setPendingReportLatLng] = useState(null)
+  const [reportError, setReportError] = useState(null)
+  const [selectedReport, setSelectedReport] = useState(null)
+  const [reportDetailLoading, setReportDetailLoading] = useState(false)
   const prevScoreRef = useRef(null)
 
   /* ── Backend hooks ── */
@@ -66,7 +70,7 @@ export default function App() {
 
   const onWsData = useCallback(d => { if (d?.risk) setData(d) }, [setData])
   useWebSocket(bairro, onWsData)
-  const { reports, loadNearby, submitReport, confirmReport } = useReports()
+  const { reports, loadNearby, submitReport, confirmReport, likeReport, getReport } = useReports()
 
   /* ── Derive condition/theme from weather code ── */
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
@@ -160,7 +164,6 @@ export default function App() {
   /* ── Handlers ── */
   function handleBairroChange(b) {
     setBairro(b)
-    setRouteResult(null)
     setSidebarOpen(false)
     if (isMobile) setMobileView('map')
   }
@@ -186,14 +189,53 @@ export default function App() {
     toggleTheme()
   }
 
-  function openReportModal() {
+  function openQuickReport() {
     soundMgr.playClick()
+    setReportError(null)
+    if (reportGps?.lat != null && reportGps?.lon != null) {
+      setPendingReportLatLng({ lat: reportGps.lat, lon: reportGps.lon })
+    }
     setReportOpen(true)
   }
 
-  async function handleSubmitReport(payload) {
-    await submitReport(payload)
-    loadNearby(payload.lat, payload.lon)
+  function handleMapClick(lat, lon) {
+    if (reportGps?.lat == null || reportGps?.lon == null) {
+      setReportError('Ative a localização do navegador para reportar.')
+      setReportOpen(false)
+      return
+    }
+    if (haversineKm(reportGps.lat, reportGps.lon, lat, lon) > 1.5) {
+      setReportError('Escolha um ponto a até 1,5 km da sua localização atual.')
+      setReportOpen(false)
+      return
+    }
+    soundMgr.playClick()
+    setReportError(null)
+    setPendingReportLatLng({ lat, lon })
+    setReportOpen(true)
+  }
+
+  async function handleSubmitReport(payload, coords = {}) {
+    const result = await submitReport(payload)
+    if (coords.lat != null && coords.lon != null) loadNearby(coords.lat, coords.lon)
+    if (result?.offline) setReportError('Sem conexão. Report salvo e será enviado automaticamente.')
+  }
+
+  async function handleReportClick(report) {
+    setReportDetailLoading(true)
+    try {
+      const detail = await getReport(report.id)
+      setSelectedReport(detail)
+    } catch {
+      setSelectedReport(report)
+    } finally {
+      setReportDetailLoading(false)
+    }
+  }
+
+  async function handleVote(id, vote) {
+    const data = await likeReport(id, vote)
+    setSelectedReport(prev => prev?.id === id ? { ...prev, ...data } : prev)
   }
 
   /* ── Splash ── */
@@ -203,14 +245,14 @@ export default function App() {
     <div className={`app-root${isLight ? ' light' : ''}`} data-theme={theme}>
       <a href="#main" className="skip-link">Ir para conteúdo</a>
 
-      {/* Mobile overlay (under sidebar when open) */}
-      {isMobile && sidebarOpen && (
+      {/* Overlay backdrop — desktop + mobile quando sidebar aberta */}
+      {sidebarOpen && (
         <div className="mobile-overlay" aria-hidden="true" onClick={closeMobileSidebar} />
       )}
 
-      {/* Sidebar (drawer no mobile) */}
+      {/* Sidebar — drawer overlay em todos os tamanhos */}
       <aside
-        className={`sidebar-panel${isMobile ? ' mobile' : ''}${isMobile && sidebarOpen ? ' open' : ''}`}
+        className={`sidebar-panel${isMobile ? ' mobile' : ''}${sidebarOpen ? ' open' : ''}`}
         aria-label="Painel lateral"
       >
         <Sidebar
@@ -228,7 +270,6 @@ export default function App() {
           onThemeToggle={handleThemeToggle}
           mobile={isMobile}
           onClose={closeMobileSidebar}
-          onRouteResult={setRouteResult}
         />
       </aside>
 
@@ -237,24 +278,22 @@ export default function App() {
         id="main"
         className={`app-main${isMobile && mobileView === 'sidebar' ? ' is-hidden' : ''}`}
       >
-        {/* Mobile top: open-sidebar button */}
-        {isMobile && (
-          <div className="map-mobile-topbar">
-            <button
-              type="button"
-              className="mobile-open-sidebar"
-              onClick={() => { soundMgr.playClick(); setSidebarOpen(true) }}
-              aria-label="Abrir painel"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-              {bairro}
-            </button>
-          </div>
-        )}
+        {/* Botão hamburger — sempre visível, abre sidebar drawer */}
+        <div className="map-mobile-topbar">
+          <button
+            type="button"
+            className="mobile-open-sidebar"
+            onClick={() => { soundMgr.playClick(); setSidebarOpen(true) }}
+            aria-label="Abrir painel"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+            {bairro}
+          </button>
+        </div>
 
         <MapStage
           bairro={bairro}
@@ -263,9 +302,10 @@ export default function App() {
           loading={loading}
           error={error}
           darkMode={!isLight}
-          onCreateReport={openReportModal}
+          onCreateReport={openQuickReport}
+          onMapClick={handleMapClick}
+          onReportClick={handleReportClick}
           mobile={isMobile}
-          routeResult={routeResult}
         />
       </main>
 
@@ -281,14 +321,22 @@ export default function App() {
         />
       )}
 
-      {/* Report modal */}
-      <ReportModal
+      <QuickReportSheet
         open={reportOpen}
         onClose={() => setReportOpen(false)}
         onSubmit={handleSubmitReport}
         bairro={bairro}
         userLat={reportGps?.lat}
         userLon={reportGps?.lon}
+        reportLat={pendingReportLatLng?.lat}
+        reportLon={pendingReportLatLng?.lon}
+      />
+      {reportError && <div className="floating-form-error" role="alert">{reportError}</div>}
+      {reportDetailLoading && <div className="floating-form-error" role="status">Carregando report...</div>}
+      <ReportPinPopup
+        report={selectedReport}
+        onClose={() => setSelectedReport(null)}
+        onVote={handleVote}
       />
     </div>
   )

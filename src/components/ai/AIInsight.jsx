@@ -25,7 +25,7 @@ function splitNarrative(narrative) {
     diagnosis: lines[0] || 'Dados insuficientes para fechar diagnóstico agora.',
     location:  lines[1] || 'Sem ponto específico apontado neste momento.',
     timing:    lines[2] || 'Cenário se mantém nas próximas horas.',
-    action:    lines[3] || 'Revise seu trajeto antes de sair.',
+    action:    lines[3] || 'Revise as áreas próximas antes de sair.',
   }
 }
 
@@ -38,26 +38,26 @@ function modelLabel(modelUsed) {
   return `IA · ${modelUsed}`
 }
 
-export function AIInsight({ bairro, risk, consensus, reports }) {
+export function AIInsight({ bairro, risk, consensus, weather, reports }) {
   const { narrative, modelUsed, loading, error, refresh } = useNarrative()
   const { boletim: apacBoletim } = useApac()
   const level = risk?.nivel || 'SEGURO'
   const meta = LEVEL_META[level] || LEVEL_META.SEGURO
-  const briefing = splitNarrative(narrative)
-  const rainNext = metric(consensus?.rain_next_24h_mm)
-  const rainPast = metric(consensus?.rain_past_24h_mm)
-  const sources = consensus?.sources_count || 1
+  const lines = (narrative || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3)
+  const rainNow = weather?.rain_1h_mm
+  const rain24h = weather?.rain_24h_mm
+  const station = weather?.station_name
 
   useEffect(() => {
     if (bairro && risk) {
-      refresh({ bairro, riskData: risk, consensusData: consensus, nearbyReports: reports, apacBoletim })
+      refresh({ bairro, riskData: risk, consensusData: consensus, nearbyReports: reports, apacBoletim, weather })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bairro, risk?.nivel])
+  }, [bairro, risk?.nivel, weather?.rain_level])
 
   function handleRefresh() {
     soundMgr.playClick()
-    refresh({ bairro, riskData: risk, consensusData: consensus, nearbyReports: reports, apacBoletim })
+    refresh({ bairro, riskData: risk, consensusData: consensus, nearbyReports: reports, apacBoletim, weather })
   }
 
   return (
@@ -102,17 +102,16 @@ export function AIInsight({ bairro, risk, consensus, reports }) {
           </div>
 
           <div className="ai-narrative">
-            <p className="ai-diagnosis">{briefing.diagnosis}</p>
-            <p className="ai-location">{briefing.location}</p>
-            <p className="ai-timing">{briefing.timing}</p>
-            <p className="ai-action">{briefing.action}</p>
+            {lines.map((line, i) => (
+              <p key={i} className={`ai-line ai-line-${i + 1}`}>{line}</p>
+            ))}
           </div>
 
-          <div className="ai-metrics-row" aria-label="Dados usados pela IA">
-            <span>{rainNext}mm próximas 24h</span>
-            <span>{rainPast}mm últimas 24h</span>
+          <div className="ai-metrics-row" aria-label="Dados APAC usados pela IA">
+            {rainNow != null && <span>{Number(rainNow).toFixed(1)} mm/h agora</span>}
+            {rain24h != null && <span>{Number(rain24h).toFixed(0)} mm em 24h</span>}
+            {station && <span>est. {station}</span>}
             <span>{reports?.length || 0} reports</span>
-            <span>{sources} fontes</span>
           </div>
         </div>
       )}

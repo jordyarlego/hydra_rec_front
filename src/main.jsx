@@ -1,16 +1,13 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './styles/globals.css'
 
-if ('serviceWorker' in navigator) {
+const AdminPage = lazy(() => import('./pages/AdminPage.jsx').then(mod => ({ default: mod.AdminPage })))
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
-      if (!import.meta.env.PROD) {
-        console.info('[SW] registrado em dev. Scope:', reg.scope)
-        return
-      }
-
       const checkForUpdate = () => reg.update().catch(() => {})
       setInterval(checkForUpdate, 15 * 60 * 1000)
 
@@ -39,10 +36,18 @@ if ('serviceWorker' in navigator) {
       console.error('[SW] falha ao registrar /sw.js:', err)
     })
   })
+} else if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then(registrations => registrations.forEach(registration => registration.unregister()))
+    .catch(() => {})
 }
+
+const Root = window.location.pathname.startsWith('/admin') ? AdminPage : App
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <Suspense fallback={null}>
+      <Root />
+    </Suspense>
   </React.StrictMode>
 )

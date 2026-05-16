@@ -10,7 +10,7 @@ import { soundMgr } from '../../lib/soundManager.js'
    + badge "+", muito mais intuitivo que um botão "+" só.
    ════════════════════════════════════════════════════ */
 
-export function MapStage({ bairro, risk, reports = [], loading, error, darkMode, onCreateReport, mobile, routeResult }) {
+export function MapStage({ bairro, risk, reports = [], loading, error, darkMode, onCreateReport, onMapClick, onReportClick, mobile }) {
   return (
     <div className="map-stage">
       <HydraMap
@@ -18,7 +18,8 @@ export function MapStage({ bairro, risk, reports = [], loading, error, darkMode,
         risk={risk}
         reports={reports}
         darkMode={darkMode}
-        routeResult={routeResult}
+        onMapClick={onMapClick}
+        onReportClick={onReportClick}
       />
 
       {/* Top-right: live clock */}

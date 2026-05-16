@@ -6,11 +6,10 @@ import { IconBtn } from '../common/IconBtn.jsx'
 import { HydraLogo } from '../effects/HydraLogo.jsx'
 import { HeroCard } from '../weather/HeroCard.jsx'
 import { ChipsBar } from '../weather/ChipsBar.jsx'
-import { ForecastHourly } from '../weather/ForecastHourly.jsx'
+import { WeatherOutlook } from '../weather/WeatherOutlook.jsx'
 import { AlertBanner } from '../risk/AlertBanner.jsx'
 import { ConfidenceBadge } from '../risk/ConfidenceBadge.jsx'
 import { AIInsight } from '../ai/AIInsight.jsx'
-import { RouteAnalysis } from '../route/RouteAnalysis.jsx'
 import { DifferentialTable } from '../benchmark/DifferentialTable.jsx'
 import { NearbyReportsList } from '../reports/NearbyReportsList.jsx'
 import { ApacBanner } from '../risk/ApacBanner.jsx'
@@ -65,7 +64,7 @@ export function Sidebar({
   bairro, onBairroChange,
   reports, onConfirmReport,
   light, soundOn, onSoundToggle, onThemeToggle,
-  mobile, onClose, onRouteResult,
+  mobile, onClose,
 }) {
   const [tab, setTab] = useState('ia')
   const explain  = useExplain()
@@ -193,8 +192,7 @@ export function Sidebar({
 
           <HeroCard
             bairro={bairro}
-            condition={condition}
-            current={data.weather?.current}
+            weather={data.weather}
             risk={data.risk}
             light={light}
             onExplain={() => { soundMgr.playClick(); explain.explain(bairro) }}
@@ -211,14 +209,18 @@ export function Sidebar({
 
           <div>
             <SectionLabel>Métricas Atuais</SectionLabel>
-            <ChipsBar current={data.weather?.current} risk={data.risk} light={light} />
+            <ChipsBar weather={data.weather} light={light} />
           </div>
 
           <Hairline />
 
           <div>
-            <SectionLabel>Próximas 6 Horas</SectionLabel>
-            <ForecastHourly forecast={data.forecast6h || []} light={light} />
+            <SectionLabel>Cenário APAC</SectionLabel>
+            <WeatherOutlook
+              lat={data.location?.latitude}
+              lon={data.location?.longitude}
+              light={light}
+            />
           </div>
 
           <Hairline />
@@ -226,9 +228,8 @@ export function Sidebar({
           <div>
             <TabBar
               tabs={[
-                { id: 'ia',   label: 'Análise IA' },
-                { id: 'rota', label: 'Trajeto' },
-                { id: 'dif',  label: 'Fontes' },
+                { id: 'ia',  label: 'Análise IA' },
+                { id: 'dif', label: 'Fontes' },
               ]}
               active={tab}
               onChange={setTab}
@@ -239,11 +240,11 @@ export function Sidebar({
                   bairro={bairro}
                   risk={data.risk}
                   consensus={data.consensus}
+                  weather={data.weather}
                   reports={reports}
                 />
               )}
-              {tab === 'rota' && <RouteAnalysis currentBairro={bairro} consensus={data.consensus} onResult={onRouteResult} />}
-              {tab === 'dif'  && <DifferentialTable consensus={data.consensus} risk={data.risk} />}
+              {tab === 'dif' && <DifferentialTable consensus={data.consensus} risk={data.risk} />}
             </div>
           </div>
 
@@ -258,7 +259,7 @@ export function Sidebar({
 
           <div className="sidebar-footer">
             <div className="sidebar-footer-title">HYDRAREC · DEFESA CIVIL PE</div>
-            <div className="sidebar-footer-sub">v2.0 · Open-Meteo · INMET · OpenWeather</div>
+            <div className="sidebar-footer-sub">v3.0 · APAC/CEMADEN · Gemini Vision · NVIDIA NIM</div>
           </div>
         </div>
       </div>

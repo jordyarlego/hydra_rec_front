@@ -36,6 +36,7 @@ async function mockApi(page) {
   await page.route('**/api/dashboard/**', route => route.fulfill({ json: dashboardPayload }))
   await page.route('**/api/reports/nearby**', route => route.fulfill({ json: { reports: [] } }))
   await page.route('**/api/narrative', route => route.fulfill({ json: { narrative: 'Risco moderado em monitoramento.' } }))
+  await page.route('**/api/apac/boletim', route => route.fulfill({ json: { status: 'ok', acumulados: [] } }))
 }
 
 test('opens dashboard and toggles theme', async ({ page }) => {
@@ -46,6 +47,7 @@ test('opens dashboard and toggles theme', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Boa Viagem' })).toBeVisible({ timeout: 10000 })
   await expect(page.getByLabel(/Hydra Score 52, MODERADO/i)).toBeVisible()
 
+  await page.getByRole('button', { name: /Abrir painel/i }).click()
   const themeToggle = page.getByRole('button', { name: /Modo claro/i })
   await themeToggle.click()
 
@@ -67,4 +69,25 @@ test('mobile starts on panel and keeps map controls visible', async ({ page }) =
   await expect(page.locator('.leaflet-control-zoom')).toBeVisible()
   await expect(page.locator('.leaflet-control-zoom-in')).toBeInViewport()
   await expect(page.locator('.leaflet-control-zoom-out')).toBeInViewport()
+})
+
+test('report flow blocks gracefully without browser location', async ({ page }) => {
+  await mockApi(page)
+  await page.goto('/')
+
+  await expect(page.getByRole('button', { name: /Reportar ocorrência/i })).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: /Reportar ocorrência/i }).click()
+
+  const dialog = page.getByRole('dialog', { name: /Reportar ocorrência/i })
+  await expect(dialog).toBeVisible()
+  await expect(page.getByText(/Localização do navegador necessária/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enviar' })).toBeDisabled()
+})
+
+test('admin route shows login screen', async ({ page }) => {
+  await page.goto('/admin')
+
+  await expect(page.locator('.admin-login-panel')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByLabel(/Email/i)).toBeVisible()
+  await expect(page.getByLabel(/Senha/i)).toBeVisible()
 })

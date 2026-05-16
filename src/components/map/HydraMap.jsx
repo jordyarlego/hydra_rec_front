@@ -24,36 +24,17 @@ function makeCriticoIcon() {
   })
 }
 
-function makeDestinationIcon() {
-  return L.divIcon({
-    className: 'route-destination-icon',
-    html: `
-      <span class="route-destination-pin" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12z" fill="currentColor"/>
-          <circle cx="12" cy="9" r="2.7" fill="#fff"/>
-        </svg>
-      </span>
-    `,
-    iconSize: [34, 42],
-    iconAnchor: [17, 40],
-    popupAnchor: [0, -36],
-  })
-}
 
-const HAZARD_COLOR = { leve: '#22c55e', moderado: '#f97316', grave: '#ef4444' }
 
-export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReportClick, routeResult }) {
+export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapClick, onReportClick }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const tileRef = useRef(null)
   const layersRef = useRef({})
   const gpsWatchRef = useRef(null)
-  const routeLayersRef = useRef([])
 
   const [showReports, setShowReports] = useState(true)
   const [showCriticos, setShowCriticos] = useState(true)
-  const [showRoute, setShowRoute] = useState(true)
   const [gpsPos, setGpsPos] = useState(null)
   const [bairrosGeojson, setBairrosGeojson] = useState(null)
 
@@ -116,6 +97,14 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
       mapRef.current = null
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!mapRef.current || !onMapClick) return
+    const map = mapRef.current
+    const handler = e => onMapClick(e.latlng.lat, e.latlng.lng)
+    map.on('click', handler)
+    return () => map.off('click', handler)
+  }, [onMapClick])
 
   // ── Swap tile layer on dark/light toggle ─────────────────────────────────
   useEffect(() => {
@@ -198,19 +187,23 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
       if (r.lat == null || r.lon == null) continue
       const color = SEV_COLOR[r.severity] ?? '#888'
       L.circleMarker([r.lat, r.lon], {
-        radius: 7,
+        radius: r.pending_offline ? 8 : 7,
         color,
-        weight: 1.5,
+        weight: r.pending_offline ? 2.2 : 1.5,
+        dashArray: r.pending_offline ? '3 4' : undefined,
         fillColor: color,
-        fillOpacity: 0.85,
+        fillOpacity: r.pending_offline ? 0.45 : 0.85,
       })
         .bindPopup(
           `<div class="map-popup"><b>${r.type?.replace('_', ' ')}</b><br/>
            <span class="popup-sev" style="color:${color}">${r.severity}</span><br/>
            ${r.description ? `<span>${r.description}</span>` : ''}
-           <br/><small>${r.confirmed_count ?? 0} confirmações</small></div>`,
+           <br/><small>${r.pending_offline ? 'Pendente de envio' : `${r.confirmed_count ?? 0} confirmações`}</small></div>`,
         )
-        .on('click', () => onReportClick?.(r))
+        .on('click', e => {
+          if (e.originalEvent) L.DomEvent.stop(e.originalEvent)
+          onReportClick?.(r)
+        })
         .addTo(group)
     }
     layersRef.current.reports = group
@@ -246,61 +239,6 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
       : layersRef.current.criticos.remove()
   }, [showCriticos])
 
-  // ── Route polyline + hazard circles ─────────────────────────────────────
-  useEffect(() => {
-    routeLayersRef.current.forEach(l => l.remove())
-    routeLayersRef.current = []
-    if (!mapRef.current || !routeResult?.route_coords?.length) return
-
-    const polyline = L.polyline(routeResult.route_coords, {
-      color: '#3b82f6',
-      weight: 4,
-      opacity: 0.88,
-    })
-      .bindTooltip(
-        `Trajeto — score ${routeResult.risk_score ?? '?'}/100 · ${routeResult.distance_km ?? '?'} km`,
-        { sticky: true },
-      )
-      .addTo(mapRef.current)
-    routeLayersRef.current.push(polyline)
-
-    const destination = routeResult.route_coords[routeResult.route_coords.length - 1]
-    if (destination) {
-      const destMarker = L.marker(destination, { icon: makeDestinationIcon(), zIndexOffset: 900 })
-        .bindTooltip('Destino', { direction: 'top', offset: [0, -34], opacity: 0.95 })
-        .addTo(mapRef.current)
-      routeLayersRef.current.push(destMarker)
-    }
-
-    const bounds = polyline.getBounds()
-    if (bounds.isValid()) {
-      mapRef.current.fitBounds(bounds, { padding: [48, 48], maxZoom: 15, animate: true, duration: 0.6 })
-    }
-
-    for (const h of routeResult.hazards ?? []) {
-      if (h.lat == null || h.lon == null) continue
-      const color = HAZARD_COLOR[h.severity] || '#f97316'
-      const circle = L.circle([h.lat, h.lon], {
-        radius: 280,
-        color,
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.22,
-      })
-        .bindPopup(
-          `<div class="map-popup"><b>${h.name}</b><br/><span>${h.description}</span><br/><small>Fonte: Defesa Civil PE / APAC</small></div>`,
-        )
-        .addTo(mapRef.current)
-      routeLayersRef.current.push(circle)
-    }
-  }, [routeResult])
-
-  useEffect(() => {
-    if (!mapRef.current) return
-    routeLayersRef.current.forEach(l => {
-      showRoute ? l.addTo(mapRef.current) : l.remove()
-    })
-  }, [showRoute])
 
   return (
     <div className={`hydra-map-wrap${!darkMode ? ' map-light' : ''}`}>
@@ -330,16 +268,6 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onReport
           >
             <span className="layer-dot" style={{ background: '#3b82f6' }} />
             GPS
-          </button>
-        )}
-        {routeResult?.route_coords?.length > 0 && (
-          <button
-            className={`map-layer-btn ${showRoute ? 'active' : ''}`}
-            onClick={() => setShowRoute(v => !v)}
-            aria-pressed={showRoute}
-          >
-            <span className="layer-dot" style={{ background: '#3b82f6' }} />
-            Trajeto
           </button>
         )}
       </div>

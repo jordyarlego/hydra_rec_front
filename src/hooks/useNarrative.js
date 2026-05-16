@@ -7,12 +7,12 @@ export function useNarrative() {
   const [loading,    setLoading]    = useState(false)
   const [error,      setError]      = useState(null)
 
-  const refresh = useCallback(async ({ bairro, riskData, consensusData, nearbyReports, apacBoletim }) => {
+  const refresh = useCallback(async ({ bairro, riskData, consensusData, nearbyReports, apacBoletim, weather }) => {
     if (!bairro || !riskData) return
     setLoading(true)
     setError(null)
     try {
-      const result = await api.getNarrative(bairro, riskData, consensusData, nearbyReports, apacBoletim)
+      const result = await api.getNarrative(bairro, riskData, consensusData, nearbyReports, apacBoletim, weather)
       setNarrative(result.narrative)
       setModelUsed(result.model_used || null)
     } catch (e) {

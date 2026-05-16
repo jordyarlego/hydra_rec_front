@@ -1,4 +1,19 @@
-# HydraRec — Frontend
+# HydraRec V3 — Frontend
+
+> Estado atual: app público mapa-first + `/admin`, reports rápidos por clique no mapa, câmera real no report, fila offline e APAC como fonte meteorológica.
+
+## V3 em produção
+
+- Público: `/` renderiza mapa fullscreen; sidebar é drawer.
+- Report: `QuickReportSheet` abre por clique no mapa/FAB, usa câmera via `getUserMedia` e fallback `capture`.
+- Offline: reports com falha de rede entram em IndexedDB e reaparecem como pins pendentes até reenvio automático.
+- Admin: `/admin` é lazy-loaded em chunk separado e usa Supabase Auth via `/api/public-config`.
+- Testes: `npm run test:e2e` cobre a11y, login admin e bloqueio sem GPS.
+
+```bash
+npm run build
+npm run test:e2e
+```
 
 Dashboard de risco climático hiperlocal para os bairros do Recife. Interface mobile-first estilo Apple Weather / Windy.
 

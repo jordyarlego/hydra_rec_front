@@ -17,7 +17,7 @@ export function AlertBanner({ risk, bairro }) {
   const cfg = LEVEL[level] || LEVEL.SEGURO
 
   const msg = isActionable
-    ? `Atenção em ${bairro}: revise seu trajeto e evite áreas de baixa altitude.`
+    ? `Atenção em ${bairro}: evite áreas de baixa altitude.`
     : `${bairro} sem alerta crítico agora. Monitore mudanças de chuva e maré.`
 
   return (
