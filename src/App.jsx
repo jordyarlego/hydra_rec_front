@@ -13,6 +13,7 @@ import { MapStage }      from './components/layout/MapStage.jsx'
 import { MobileNav }     from './components/layout/MobileNav.jsx'
 import { QuickReportSheet } from './components/reports/QuickReportSheet.jsx'
 import { ReportPinPopup } from './components/reports/ReportPinPopup.jsx'
+import { SchemaWarning } from './components/common/SchemaWarning.jsx'
 
 import './styles/app.css'
 
@@ -244,6 +245,7 @@ export default function App() {
   return (
     <div className={`app-root${isLight ? ' light' : ''}`} data-theme={theme}>
       <a href="#main" className="skip-link">Ir para conteúdo</a>
+      <SchemaWarning />
 
       {/* Overlay backdrop — desktop + mobile quando sidebar aberta */}
       {sidebarOpen && (

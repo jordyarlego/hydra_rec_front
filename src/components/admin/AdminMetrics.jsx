@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
+import { adminFetchJson } from '../../lib/adminFetch.js'
 
-export function AdminMetrics({ token }) {
+export function AdminMetrics() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetch('/api/admin/metrics', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+    adminFetchJson('/api/admin/metrics')
       .then(setData)
       .catch(err => setError(err.message))
-  }, [token])
+  }, [])
 
   const max = Math.max(...(data?.top_bairros || []).map(x => x.count), 1)
 

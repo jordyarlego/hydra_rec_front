@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { adminFetch, adminFetchJson } from '../../lib/adminFetch.js'
 
 const SOURCE_LABELS = {
   neighborhoods_geojson: 'Bairros (GeoJSON)',
@@ -15,7 +16,7 @@ function StatusDot({ ok, err }) {
   return              <span className="odh-dot odh-dot--idle"   title="Sem dados" />
 }
 
-export default function OfficialDataStatus({ token }) {
+export default function OfficialDataStatus() {
   const [sources, setSources]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [importing, setImporting] = useState(false)
@@ -26,37 +27,52 @@ export default function OfficialDataStatus({ token }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/official-data/status', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const data = await adminFetchJson('/api/admin/official-data/status')
       setSources(data.sources || [])
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [])
 
   useEffect(() => { fetchStatus() }, [fetchStatus])
 
   async function handleImport() {
     setImporting(true)
-    setImportMsg(null)
+    setImportMsg('Iniciando importação em background…')
     try {
-      const res = await fetch('/api/admin/official-data/import', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      const total = Object.values(data.results || {}).reduce((s, r) => s + (r.ok || 0), 0)
-      setImportMsg(`Importação concluída: ${total} registros processados.`)
-      await fetchStatus()
+      const data = await adminFetchJson('/api/admin/official-data/import', { method: 'POST' })
+      if (data.status === 'already_running') {
+        setImportMsg('Já existe uma importação em andamento. Aguardando terminar…')
+      } else {
+        setImportMsg('Importação rodando — vou acompanhar e te aviso.')
+      }
+      // Polling do status a cada 3s
+      const poll = setInterval(async () => {
+        try {
+          const status = await adminFetchJson('/api/admin/official-data/import-status')
+          if (!status.running) {
+            clearInterval(poll)
+            const result = status.result || {}
+            if (result.error) {
+              setImportMsg(`Erro: ${result.error}`)
+            } else {
+              const total = Object.values(result).reduce((s, r) => s + (r?.ok || 0), 0)
+              const errs = Object.values(result).reduce((s, r) => s + (r?.err || 0), 0)
+              setImportMsg(`Concluído em ${status.elapsed_s}s · ${total} registros importados${errs ? ` · ${errs} erros` : ''}.`)
+            }
+            await fetchStatus()
+            setImporting(false)
+          } else {
+            setImportMsg(`Importando há ${status.elapsed_s}s…`)
+          }
+        } catch (e) {
+          // mantém polling
+        }
+      }, 3000)
     } catch (e) {
       setImportMsg(`Erro: ${e.message}`)
-    } finally {
       setImporting(false)
     }
   }
@@ -65,9 +81,20 @@ export default function OfficialDataStatus({ token }) {
     <section className="odh-card">
       <div className="odh-header">
         <div>
-          <h3 className="odh-title">Bases oficiais</h3>
+          <h3 className="odh-title">Bases oficiais para priorização</h3>
           <p className="odh-subtitle">
-            Importa bases urbanas usadas pela IA para saber bairro/RPA, via próxima, recorrência e relação com chamados públicos.
+            Baixa do <strong>Portal de Dados Abertos do Recife</strong> os chamados
+            da EMLURB (156), atendimentos da Defesa Civil e cadastro de bairros.
+            Quando isso está populado, a plataforma consegue:
+          </p>
+          <ul className="odh-bullets">
+            <li>Saber em qual bairro/RPA cada report está</li>
+            <li>Aumentar a prioridade de reports em ruas com histórico oficial</li>
+            <li>Mostrar no mapa quais áreas têm mais ocorrências históricas</li>
+            <li>Sugerir “esta rua tem 3 chamados em aberto” no popup do report</li>
+          </ul>
+          <p className="odh-subtitle odh-subtitle--small">
+            ⏱ Pode levar 30s–2min — milhares de linhas dos arquivos públicos.
           </p>
         </div>
         <button
@@ -75,7 +102,7 @@ export default function OfficialDataStatus({ token }) {
           onClick={handleImport}
           disabled={importing}
         >
-          {importing ? 'Importando…' : 'Importar dados oficiais'}
+          {importing ? 'Importando…' : 'Importar agora'}
         </button>
       </div>
 
@@ -89,7 +116,7 @@ export default function OfficialDataStatus({ token }) {
       ) : sources.length === 0 ? (
         <div className="odh-empty">
           <strong>Nenhuma base registrada ainda.</strong>
-          <span>“0 registros processados” significa que a fonte consultada não retornou linhas novas ou a base externa está vazia/indisponível. O admin continua funcionando, mas a IA perde recorrência e cruzamento por via.</span>
+          <span>Se aparecer 0 registros, o sistema só não encontrou dados novos nessa fonte. A triagem continua funcionando; o que fica mais fraco é a priorização por reincidência/via.</span>
         </div>
       ) : (
         <table className="odh-table">

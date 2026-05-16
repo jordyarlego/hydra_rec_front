@@ -1,10 +1,10 @@
-export default function ExportPanel({ token }) {
+import { adminFetch } from '../../lib/adminFetch.js'
+
+export default function ExportPanel() {
   function download(url, filename) {
     const a = document.createElement('a')
-    a.href = url
     a.setAttribute('download', filename)
-    // Adiciona auth como query param apenas se necessário; prefer fetch + blob para maior controle
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    adminFetch(url)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.blob()

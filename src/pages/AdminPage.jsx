@@ -18,12 +18,17 @@ export function AdminPage() {
   const { session, isAdmin, signIn, signOut } = useAuth()
   const [section, setSection] = useState(currentSection)
   const [selectedReport, setSelectedReport] = useState(null)
-  const token = session?.access_token
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   useEffect(() => {
     const onPop = () => setSection(currentSection())
+    const onExpired = () => setSessionExpired(true)
     window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    window.addEventListener('hydrarec-auth-expired', onExpired)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('hydrarec-auth-expired', onExpired)
+    }
   }, [])
 
   function navigate(next) {
@@ -31,7 +36,22 @@ export function AdminPage() {
     window.history.pushState({}, '', `/admin/${next}`)
   }
 
-  if (!session) return <AdminLogin onSignIn={signIn} />
+  if (!session || sessionExpired) {
+    return (
+      <>
+        {sessionExpired && (
+          <div className="admin-toast admin-toast-warning" role="alert">
+            Sessão expirada — faça login novamente.
+          </div>
+        )}
+        <AdminLogin onSignIn={async (...args) => {
+          const r = await signIn(...args)
+          setSessionExpired(false)
+          return r
+        }} />
+      </>
+    )
+  }
   if (!isAdmin) {
     return (
       <main className="admin-login">
@@ -48,16 +68,20 @@ export function AdminPage() {
     <AdminLayout section={section} onSectionChange={navigate} onSignOut={signOut}>
       {section === 'reports' && (
         <div className="admin-split">
-          <AdminReportsTable token={token} onSelect={setSelectedReport} />
-          <AdminReportDetail token={token} reportId={selectedReport} onClose={() => setSelectedReport(null)} />
+          <AdminReportsTable onSelect={setSelectedReport} selectedId={selectedReport} />
+          <AdminReportDetail
+            reportId={selectedReport}
+            onClose={() => setSelectedReport(null)}
+            onOpenTickets={() => navigate('tickets')}
+          />
         </div>
       )}
-      {section === 'tickets' && <AdminTickets token={token} />}
-      {section === 'metrics' && <AdminMetrics token={token} />}
+      {section === 'tickets' && <AdminTickets />}
+      {section === 'metrics' && <AdminMetrics />}
       {section === 'official' && (
         <section className="admin-section">
-          <OfficialDataStatus token={token} />
-          <ExportPanel token={token} />
+          <OfficialDataStatus />
+          <ExportPanel />
         </section>
       )}
     </AdminLayout>

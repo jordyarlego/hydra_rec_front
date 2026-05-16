@@ -35,6 +35,8 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapCli
 
   const [showReports, setShowReports] = useState(true)
   const [showCriticos, setShowCriticos] = useState(true)
+  const [showDC, setShowDC] = useState(false)
+  const [dcHotspots, setDcHotspots] = useState([])
   const [gpsPos, setGpsPos] = useState(null)
   const [bairrosGeojson, setBairrosGeojson] = useState(null)
 
@@ -239,6 +241,52 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapCli
       : layersRef.current.criticos.remove()
   }, [showCriticos])
 
+  // ── Defesa Civil: hotspots de chamados oficiais (oficiais EMLURB/DC) ───
+  useEffect(() => {
+    if (!showDC) return
+    let cancelled = false
+    fetch('/api/official/hotspots?limit=50')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { if (!cancelled) setDcHotspots(data?.data || []) })
+      .catch(() => { if (!cancelled) setDcHotspots([]) })
+    return () => { cancelled = true }
+  }, [showDC])
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    layersRef.current.dc?.remove()
+    if (!showDC) return
+    const group = L.layerGroup()
+    // Hotspots vêm com neighborhood + recurrence_score (sem lat/lon direto)
+    // Vou geocodificar pelo BAIRRO_COORDS
+    for (const h of dcHotspots) {
+      const center = BAIRRO_COORDS[h.neighborhood]
+      if (!center || center.length !== 2) continue
+      const score = Number(h.recurrence_score || 0)
+      const radius = Math.min(800, 200 + score * 80)
+      const color = score >= 5 ? '#a855f7' : score >= 3 ? '#ef4444' : '#f97316'
+      L.circle(center, {
+        radius,
+        color,
+        fillColor: color,
+        fillOpacity: 0.10,
+        weight: 1.5,
+        dashArray: '4 4',
+      })
+        .bindPopup(
+          `<div class="map-popup">
+            <b>${h.neighborhood || 'Bairro'}</b><br/>
+            Histórico: <b>${score.toFixed(1)}</b> de recorrência<br/>
+            ${h.nearest_road_name ? `Via mais citada: ${h.nearest_road_name}<br/>` : ''}
+            <small>Dados oficiais EMLURB / Defesa Civil</small>
+          </div>`
+        )
+        .addTo(group)
+    }
+    layersRef.current.dc = group
+    group.addTo(mapRef.current)
+  }, [showDC, dcHotspots])
+
 
   return (
     <div className={`hydra-map-wrap${!darkMode ? ' map-light' : ''}`}>
@@ -259,6 +307,15 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapCli
         >
           <span className="layer-dot" style={{ background: '#facc15' }} />
           Críticos
+        </button>
+        <button
+          className={`map-layer-btn ${showDC ? 'active' : ''}`}
+          onClick={() => setShowDC(v => !v)}
+          aria-pressed={showDC}
+          title="Histórico de chamados oficiais (EMLURB/Defesa Civil)"
+        >
+          <span className="layer-dot" style={{ background: '#a855f7' }} />
+          Histórico oficial
         </button>
         {gpsPos && (
           <button

@@ -1,41 +1,26 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNarrative } from '../../hooks/useNarrative.js'
 import { useApac } from '../../hooks/useApac.js'
 import { soundMgr } from '../../lib/soundManager.js'
 
+/* ════════════════════════════════════════════════════
+   AIInsight — só aparece quando há algo realmente ÚTIL a dizer.
+   Regras: oculta quando está tudo limpo (sem chuva agora E sem acúmulo 24h
+   E sem reports recentes E score < 30). Em outros casos, mostra texto
+   curto e acionável.
+   ════════════════════════════════════════════════════ */
+
 const LEVEL_META = {
-  SEGURO:   { label: 'Operação normal', tone: 'safe' },
-  ATENCAO:  { label: 'Atenção preventiva', tone: 'watch' },
-  MODERADO: { label: 'Risco em evolução', tone: 'moderate' },
-  ALTO:     { label: 'Ação recomendada', tone: 'high' },
-  SEVERO:   { label: 'Evite deslocamento', tone: 'severe' },
-}
-
-function stripPrefix(line) {
-  // Remove "1. ", "2. ", etc. que alguns modelos adicionam mesmo sem pedir
-  return line.replace(/^\d+\.\s*/, '').trim()
-}
-
-function splitNarrative(narrative) {
-  const lines = (narrative || '')
-    .split('\n')
-    .map(l => stripPrefix(l.trim()))
-    .filter(Boolean)
-  return {
-    diagnosis: lines[0] || 'Dados insuficientes para fechar diagnóstico agora.',
-    location:  lines[1] || 'Sem ponto específico apontado neste momento.',
-    timing:    lines[2] || 'Cenário se mantém nas próximas horas.',
-    action:    lines[3] || 'Revise as áreas próximas antes de sair.',
-  }
-}
-
-function metric(value, fallback = '—') {
-  return value == null || Number.isNaN(value) ? fallback : value
+  SEGURO:   { label: 'Operação normal',     tone: 'safe' },
+  ATENCAO:  { label: 'Atenção preventiva',  tone: 'watch' },
+  MODERADO: { label: 'Risco em evolução',   tone: 'moderate' },
+  ALTO:     { label: 'Ação recomendada',    tone: 'high' },
+  SEVERO:   { label: 'Evite deslocamento',  tone: 'severe' },
 }
 
 function modelLabel(modelUsed) {
-  if (!modelUsed || modelUsed === 'local') return 'IA · Análise local'
-  return `IA · ${modelUsed}`
+  if (!modelUsed || modelUsed === 'local') return 'Análise local'
+  return modelUsed
 }
 
 export function AIInsight({ bairro, risk, consensus, weather, reports }) {
@@ -44,32 +29,53 @@ export function AIInsight({ bairro, risk, consensus, weather, reports }) {
   const level = risk?.nivel || 'SEGURO'
   const meta = LEVEL_META[level] || LEVEL_META.SEGURO
   const lines = (narrative || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3)
+
   const rainNow = weather?.rain_1h_mm
   const rain24h = weather?.rain_24h_mm
-  const station = weather?.station_name
+  const score = risk?.score || 0
+  const reportsCount = reports?.length || 0
+
+  // Decisão: vale mostrar a IA?
+  const hasRain        = (rainNow  ?? 0) >= 0.2
+  const hasRecentRain  = (rain24h ?? 0) >= 5
+  const hasReports     = reportsCount > 0
+  const hasRiskSignal  = score >= 30
+  const shouldShow     = hasRain || hasRecentRain || hasReports || hasRiskSignal
 
   useEffect(() => {
+    if (!shouldShow) return
     if (bairro && risk) {
       refresh({ bairro, riskData: risk, consensusData: consensus, nearbyReports: reports, apacBoletim, weather })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bairro, risk?.nivel, weather?.rain_level])
+  }, [bairro, risk?.nivel, weather?.rain_level, shouldShow])
 
   function handleRefresh() {
     soundMgr.playClick()
     refresh({ bairro, riskData: risk, consensusData: consensus, nearbyReports: reports, apacBoletim, weather })
   }
 
+  // Estado oculto: tudo limpo + score baixo → não polui a tela
+  if (!shouldShow) {
+    return (
+      <section className="ai-insight ai-safe ai-collapsed" aria-label="Análise IA">
+        <p className="ai-collapsed-text">
+          Sem alerta no momento — nenhum sinal de risco em {bairro}.
+        </p>
+      </section>
+    )
+  }
+
   return (
-    <section className={`ai-insight ai-${meta.tone}`} id="ai" aria-label="Análise IA — Defesa Civil">
+    <section className={`ai-insight ai-${meta.tone}`} id="ai" aria-label="Análise IA">
       <header className="ai-header">
+        <span className="ai-title">Análise da situação</span>
         <span className="ai-badge">{modelLabel(modelUsed)}</span>
-        <span className="ai-title">Boletim operacional</span>
         <button
           className="ai-refresh"
           onClick={handleRefresh}
           disabled={loading || !risk}
-          aria-label="Atualizar análise IA"
+          aria-label="Atualizar análise"
           title="Atualizar"
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
@@ -83,41 +89,22 @@ export function AIInsight({ bairro, risk, consensus, weather, reports }) {
       {loading && (
         <div className="ai-loading" aria-live="polite">
           <span className="ai-dot" />
-          <span className="ai-status">Consultando IA...</span>
+          <span className="ai-status">Analisando…</span>
         </div>
       )}
 
       {!loading && error && (
-        <p className="ai-error" role="alert">IA indisponível: {error}</p>
+        <p className="ai-error" role="alert">Análise indisponível: {error}</p>
       )}
 
       {!loading && !error && narrative && (
         <div className="ai-body" aria-live="polite">
-          <div className="ai-briefing-head">
-            <div>
-              <span className="ai-risk-kicker">{meta.label}</span>
-              <strong>{bairro}</strong>
-            </div>
-            <span className="ai-score-chip">{risk?.score ?? '—'}/100</span>
-          </div>
-
           <div className="ai-narrative">
             {lines.map((line, i) => (
               <p key={i} className={`ai-line ai-line-${i + 1}`}>{line}</p>
             ))}
           </div>
-
-          <div className="ai-metrics-row" aria-label="Dados APAC usados pela IA">
-            {rainNow != null && <span>{Number(rainNow).toFixed(1)} mm/h agora</span>}
-            {rain24h != null && <span>{Number(rain24h).toFixed(0)} mm em 24h</span>}
-            {station && <span>est. {station}</span>}
-            <span>{reports?.length || 0} reports</span>
-          </div>
         </div>
-      )}
-
-      {!loading && !error && !narrative && (
-        <p className="ai-placeholder">Selecione um bairro para gerar análise.</p>
       )}
     </section>
   )

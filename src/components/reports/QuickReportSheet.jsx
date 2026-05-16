@@ -21,18 +21,12 @@ function inferCategory(weather) {
   return null
 }
 
-const SOURCE_LABEL = {
-  cemaden:         'CEMADEN',
-  meteorologia24h: 'Estação Meteo',
-  climatologico:   'Climatologia',
-}
-
 function rainLabel(rain) {
   if (rain == null) return null
-  if (rain >= 30)   return 'Chuva severa'
+  if (rain >= 30)   return 'Chuva muito forte'
   if (rain >= 10)   return 'Chuva forte'
   if (rain >= 2.5)  return 'Chuva moderada'
-  if (rain >= 0.2)  return 'Chuva leve'
+  if (rain >= 0.2)  return 'Chuva fraca'
   return 'Sem chuva'
 }
 
@@ -42,26 +36,20 @@ function freshnessLabel(captured_at) {
   const diffMs = Date.now() - ts.getTime()
   if (Number.isNaN(diffMs)) return null
   const min = Math.floor(diffMs / 60000)
-  if (min < 1)  return 'agora'
-  if (min < 60) return `há ${min}min`
-  return `há ${Math.floor(min / 60)}h`
+  // Acima de 1h a leitura é antiga demais pra ser útil como contexto do report
+  if (min >= 60) return null
+  if (min < 1)   return 'agora há pouco'
+  return `há ${min} min`
 }
 
 function buildWeatherHint(weather) {
   if (!weather) return null
-  const rain    = weather.rain_1h_mm
-  const station = weather.station_name
-  const source  = SOURCE_LABEL[weather.source] || 'APAC'
-  const fresh   = freshnessLabel(weather.captured_at)
-  const parts = []
-  const label   = rainLabel(rain)
-
-  if (rain != null) {
-    parts.push(rain >= 0.2 ? `${label} (${Number(rain).toFixed(1)} mm/h)` : label)
-  }
-  if (station) parts.push(`Estação ${station} (${source})`)
-  if (fresh)   parts.push(fresh)
-  return parts.join(' · ')
+  const rain  = weather.rain_1h_mm
+  const fresh = freshnessLabel(weather.captured_at)
+  if (rain == null) return null
+  const label = rainLabel(rain)
+  const main  = rain >= 0.2 ? `${label} (${Number(rain).toFixed(1)} mm/h)` : label
+  return fresh ? `${main} · ${fresh}` : main
 }
 
 export function QuickReportSheet({
@@ -216,7 +204,16 @@ export function QuickReportSheet({
 
           <section className="quick-section">
             <span className="form-label">Registro visual</span>
-            <PhotoCapture file={photo} onChange={setPhoto} />
+            <PhotoCapture
+              file={photo}
+              onChange={setPhoto}
+              onAiSuggest={(typeId) => {
+                const cat = CATEGORY_BY_ID[typeId]
+                if (!cat) return
+                setTipo(cat.id)
+                setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+              }}
+            />
           </section>
 
           <section className="quick-section">

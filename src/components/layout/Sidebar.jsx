@@ -1,19 +1,13 @@
-import { useState } from 'react'
 import { useExplain } from '../../hooks/useExplain.js'
 import { ScoreExplain } from '../risk/ScoreExplain.jsx'
 import { BairroSearch } from '../common/BairroSearch.jsx'
 import { IconBtn } from '../common/IconBtn.jsx'
 import { HydraLogo } from '../effects/HydraLogo.jsx'
 import { HeroCard } from '../weather/HeroCard.jsx'
-import { ChipsBar } from '../weather/ChipsBar.jsx'
 import { WeatherOutlook } from '../weather/WeatherOutlook.jsx'
-import { AlertBanner } from '../risk/AlertBanner.jsx'
-import { ConfidenceBadge } from '../risk/ConfidenceBadge.jsx'
-import { AIInsight } from '../ai/AIInsight.jsx'
-import { DifferentialTable } from '../benchmark/DifferentialTable.jsx'
 import { NearbyReportsList } from '../reports/NearbyReportsList.jsx'
 import { ApacBanner } from '../risk/ApacBanner.jsx'
-import { soundMgr, wmoToCondition } from '../../lib/soundManager.js'
+import { soundMgr } from '../../lib/soundManager.js'
 import { PushBell } from '../common/PushBell.jsx'
 import { useApac } from '../../hooks/useApac.js'
 
@@ -37,28 +31,6 @@ function SectionLabel({ children, right }) {
   )
 }
 
-function TabBar({ tabs, active, onChange }) {
-  return (
-    <div className="sidebar-tabs" role="tablist">
-      {tabs.map(t => {
-        const isActive = active === t.id
-        return (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => { soundMgr.playClick(); onChange(t.id) }}
-            className={`sidebar-tab${isActive ? ' active' : ''}`}
-          >
-            {t.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 export function Sidebar({
   data, loading, error, onRetry,
   bairro, onBairroChange,
@@ -66,12 +38,8 @@ export function Sidebar({
   light, soundOn, onSoundToggle, onThemeToggle,
   mobile, onClose,
 }) {
-  const [tab, setTab] = useState('ia')
   const explain  = useExplain()
   const { boletim: apacBoletim } = useApac()
-
-  /* Derive a UI-friendly condition label */
-  const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
 
   /* ── Header (sticky) ── */
   const header = (
@@ -198,24 +166,12 @@ export function Sidebar({
             onExplain={() => { soundMgr.playClick(); explain.explain(bairro) }}
           />
 
-          <AlertBanner risk={data.risk} bairro={bairro} />
           {apacBoletim && <ApacBanner boletim={apacBoletim} light={light} />}
 
-          <div>
-            <ConfidenceBadge consensus={data.consensus} />
-          </div>
-
           <Hairline />
 
           <div>
-            <SectionLabel>Métricas Atuais</SectionLabel>
-            <ChipsBar weather={data.weather} light={light} />
-          </div>
-
-          <Hairline />
-
-          <div>
-            <SectionLabel>Cenário APAC</SectionLabel>
+            <SectionLabel>Como está o clima na região</SectionLabel>
             <WeatherOutlook
               lat={data.location?.latitude}
               lon={data.location?.longitude}
@@ -226,40 +182,15 @@ export function Sidebar({
           <Hairline />
 
           <div>
-            <TabBar
-              tabs={[
-                { id: 'ia',  label: 'Análise IA' },
-                { id: 'dif', label: 'Fontes' },
-              ]}
-              active={tab}
-              onChange={setTab}
-            />
-            <div className="sidebar-tab-body">
-              {tab === 'ia' && (
-                <AIInsight
-                  bairro={bairro}
-                  risk={data.risk}
-                  consensus={data.consensus}
-                  weather={data.weather}
-                  reports={reports}
-                />
-              )}
-              {tab === 'dif' && <DifferentialTable consensus={data.consensus} risk={data.risk} />}
-            </div>
-          </div>
-
-          <Hairline />
-
-          <div>
-            <SectionLabel right={`${reports?.length || 0} reports · raio 2km`}>
-              Ocorrências Próximas
+            <SectionLabel right={`${reports?.length || 0} reports · raio 2 km`}>
+              Ocorrências próximas
             </SectionLabel>
             <NearbyReportsList reports={reports} onConfirm={onConfirmReport} />
           </div>
 
           <div className="sidebar-footer">
-            <div className="sidebar-footer-title">HYDRAREC · DEFESA CIVIL PE</div>
-            <div className="sidebar-footer-sub">v3.0 · APAC/CEMADEN · Gemini Vision · NVIDIA NIM</div>
+            <div className="sidebar-footer-title">HYDRAREC</div>
+            <div className="sidebar-footer-sub">Plataforma cívica · Recife</div>
           </div>
         </div>
       </div>

@@ -11,13 +11,6 @@ import { AtmosphericBg } from '../effects/AtmosphericBg.jsx'
    HydraScore (risk.score) é o elemento central.
    ════════════════════════════════════════════════════ */
 
-const SOURCE_LABEL = {
-  cemaden:         'CEMADEN',
-  meteorologia24h: 'EST. METEO',
-  climatologico:   'CLIMATOLOGIA',
-  unavailable:     'OFFLINE',
-}
-
 const RAIN_LEVEL_LABEL = {
   none:     'Sem chuva',
   leve:     'Chuva leve',
@@ -41,6 +34,29 @@ function formatFreshness(seconds) {
   return `há ${Math.floor(seconds / 3600)} h`
 }
 
+function formatExactTime(captured_at) {
+  if (!captured_at) return null
+  try {
+    return new Date(captured_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  } catch { return null }
+}
+
+function prettyStation(raw) {
+  // Strip "Janga 2" → "Janga"; "BOA VIAGEM" → "Boa Viagem"
+  if (!raw) return ''
+  let s = String(raw).trim()
+  s = s.replace(/\s+\d+\s*$/, '')
+  if (/[A-Z]{3,}/.test(s) && s === s.toUpperCase()) {
+    s = s.split(' ').map(w => {
+      const l = w.toLowerCase()
+      if (['de', 'da', 'do', 'das', 'dos', 'e'].includes(l)) return l
+      return w.charAt(0) + w.slice(1).toLowerCase()
+    }).join(' ')
+    s = s.charAt(0).toUpperCase() + s.slice(1)
+  }
+  return s
+}
+
 function formatNumber(value, digits = 1, fallback = '—') {
   if (value == null || Number.isNaN(Number(value))) return fallback
   return Number(value).toFixed(digits)
@@ -59,9 +75,9 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
   const rain1h    = weather.rain_1h_mm
   const rain24h   = weather.rain_24h_mm
 
-  const stationName = weather.station_name || 'Estação indisponível'
+  const stationName = prettyStation(weather.station_name) || 'Estação indisponível'
   const stationDist = weather.station_distance_m
-  const source      = SOURCE_LABEL[weather.source] || 'APAC'
+  const exactTime   = formatExactTime(weather.captured_at)
   const freshness   = formatFreshness(weather.freshness_s)
   const stale       = weather.is_stale === true
 
@@ -117,44 +133,50 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
         </div>
       </div>
 
-      {/* Linha vento · chuva atual */}
-      <div
-        className="hero-windrow"
-        style={{ borderTop: `1px solid ${divLine}` }}
-        aria-label={`Vento ${wind ?? '—'} km/h, chuva ${formatNumber(rain1h)} mm/h`}
-      >
-        <WindCompass deg={0} light={light} size={40} />
-        <div className="hero-wind-info">
-          <div className="hero-wind-value">
-            <span style={{ color: tc }}>{wind ?? '—'}</span>
-            <span style={{ color: tc2 }}>km/h</span>
-          </div>
-          <div style={{ color: tc3 }}>vento</div>
-        </div>
-        <div className="hero-precip" style={{ textAlign: 'right' }}>
-          {rain1h != null && rain1h > 0 ? (
+      {/* Linha vento · chuva — só mostra se tem algum dado */}
+      {(wind != null || (rain1h != null)) && (
+        <div
+          className="hero-windrow"
+          style={{ borderTop: `1px solid ${divLine}` }}
+          aria-label={`${wind != null ? `Vento ${wind} km/h` : ''}${rain1h != null ? `, chuva ${formatNumber(rain1h)} mm/h` : ''}`}
+        >
+          {wind != null && (
             <>
-              <div style={{ color: tc3, fontSize: '9px', letterSpacing: '.06em', textTransform: 'uppercase' }}>Chuva agora</div>
-              <div style={{ color: acc }}>{formatNumber(rain1h)}</div>
-              <div style={{ color: tc3 }}>mm/h</div>
+              <WindCompass deg={0} light={light} size={40} />
+              <div className="hero-wind-info">
+                <div className="hero-wind-value">
+                  <span style={{ color: tc }}>{wind}</span>
+                  <span style={{ color: tc2 }}>km/h</span>
+                </div>
+                <div style={{ color: tc3 }}>vento</div>
+              </div>
             </>
-          ) : (
-            <div style={{ color: tc3, fontSize: '11px' }}>Sem chuva agora</div>
           )}
+          <div className="hero-precip" style={{ textAlign: 'right', marginLeft: 'auto' }}>
+            {rain1h != null && rain1h >= 0.2 ? (
+              <>
+                <span className="hero-precip-label" style={{ color: tc3 }}>Chovendo</span>
+                <span className="hero-precip-value" style={{ color: acc, whiteSpace: 'nowrap' }}>
+                  <span className="hero-precip-num">{formatNumber(rain1h)}</span>
+                  <span className="hero-precip-unit" style={{ color: tc3 }}> mm/h</span>
+                </span>
+              </>
+            ) : rain1h != null ? (
+              <span className="hero-precip-label" style={{ color: tc3 }}>Sem chuva agora</span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Rodapé: estação APAC + freshness */}
+      {/* Rodapé: estação + hora da última leitura */}
       <div
         className="hero-source"
         style={{
           borderTop: `1px solid ${divLine}`,
           color: tc3,
         }}
+        title={`Última leitura: ${freshness}${weather.captured_at ? ` (${weather.captured_at})` : ''}`}
       >
-        <span className="hero-source-badge" style={{ color: acc, borderColor: `${acc}40` }}>
-          {source}
-        </span>
         <span className="hero-source-text" style={{ color: tc2 }}>
           {stationName}
           {stationDist != null && (
@@ -164,13 +186,12 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
         <span
           className={`hero-source-fresh${stale ? ' is-stale' : ''}`}
           style={{ color: stale ? '#ef4444' : tc2 }}
-          title={weather.captured_at || ''}
         >
-          {freshness}
+          {exactTime ? `atualizado ${exactTime}` : freshness}
         </span>
       </div>
 
-      {rain24h != null && (
+      {rain24h != null && rain24h >= 0.1 && (
         <div
           className="hero-rain24"
           style={{
@@ -178,7 +199,7 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
             color: tc2,
           }}
         >
-          <span>Acumulado 24h</span>
+          <span>Choveu nas últimas 24h</span>
           <strong style={{ color: tc }}>{formatNumber(rain24h)} mm</strong>
         </div>
       )}

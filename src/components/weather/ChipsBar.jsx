@@ -100,56 +100,57 @@ export function ChipsBar({ weather, light = false }) {
 
   const chips = []
 
-  // 1. Chuva — sempre presente porque CEMADEN cobre toda RMR
   chips.push({
     key: 'rain1h',
-    label: 'Chuva agora',
-    value: rain1h != null ? `${rain1h.toFixed(1)} mm/h` : 'sem leitura',
+    label: 'Chovendo agora?',
+    value: rain1h == null
+      ? 'sem leitura'
+      : (rain1h < 0.2 ? 'Não' : `Sim · ${rain1h.toFixed(1)} mm/h`),
     color: rainColor(rain1h),
-    hint: 'Pluviômetro CEMADEN mais próximo',
+    hint: 'Quantidade de chuva caindo neste momento',
   })
 
   chips.push({
     key: 'rain24h',
-    label: 'Acumulado 24h',
-    value: rain24h != null ? `${rain24h.toFixed(1)} mm` : 'em coleta',
+    label: 'Choveu nas últimas 24h',
+    value: rain24h == null ? 'aguardando' : (rain24h < 0.1 ? 'nada' : `${rain24h.toFixed(1)} mm`),
     color: rainColor(rain24h),
-    hint: 'Soma das últimas 24h. Atualiza automaticamente.',
+    hint: 'Total de chuva acumulado nas últimas 24 horas',
   })
 
-  chips.push({
-    key: 'trend',
-    label: 'Tendência',
-    value: `${trendIcon(trend)} ${trendLabel(trend)}`,
-    hint: 'Comparação com a leitura anterior do pluviômetro',
-  })
-
-  // 2. Meteo — APAC pode não ter estação meteorologia24h na RMR;
-  //    nesse caso temp/umidade vêm da climatologia (média histórica)
-  if (meteoOk) {
-    chips.push({
-      key: 'humidity',
-      label: 'Umidade',
-      value: humidity != null ? `${humidity}% · ${humidityLabel(humidity)}` : 'indisponível',
-      color: humidityColor(humidity),
-    })
+  if (temp != null) {
     chips.push({
       key: 'temp',
       label: 'Temperatura',
-      value: temp != null ? `${temp}°C` : 'indisponível',
-      hint: source === 'climatologico' ? 'Média climatológica (sem estação ativa)' : undefined,
+      value: `${temp}°C`,
+      hint: source === 'climatologico' ? 'Média histórica para a região' : 'Leitura atual',
     })
+  }
+
+  if (humidity != null) {
+    chips.push({
+      key: 'humidity',
+      label: 'Umidade do ar',
+      value: `${humidity}% · ${humidityLabel(humidity)}`,
+      color: humidityColor(humidity),
+    })
+  }
+
+  if (wind != null) {
     chips.push({
       key: 'wind',
       label: 'Vento',
-      value: wind != null ? `${wind} km/h` : 'indisponível',
+      value: `${wind} km/h`,
     })
-  } else {
+  }
+
+  // Só mostra "tendência" se for diferente de estável (informação que muda)
+  if (trend !== 'estavel') {
     chips.push({
-      key: 'meteo',
-      label: 'Estação meteo',
-      value: 'sem leitura agora',
-      hint: 'Nenhuma estação meteo APAC ativa para este ponto',
+      key: 'trend',
+      label: 'A chuva está',
+      value: `${trendIcon(trend)} ${trendLabel(trend)}`,
+      hint: 'Comparação com a leitura anterior',
     })
   }
 

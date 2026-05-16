@@ -1,13 +1,67 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, ImageSquare, X } from '@phosphor-icons/react'
+import { Camera, ImageSquare, X, Sparkle } from '@phosphor-icons/react'
+import { CATEGORY_BY_ID } from '../../data/report_categories.js'
 
-export function PhotoCapture({ file, onChange }) {
+export function PhotoCapture({ file, onChange, onAiSuggest }) {
   const inputRef = useRef(null)
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraError, setCameraError] = useState(null)
+  const [aiAnalysis, setAiAnalysis] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
   const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file])
+
+  // Dispara análise IA com debounce 1.5s + cache por (size, mtime, name)
+  // pra não queimar tokens enquanto o usuário ainda está montando o report
+  useEffect(() => {
+    if (!file) {
+      setAiAnalysis(null)
+      return
+    }
+
+    // Cache key estável pelo arquivo (mesma foto = mesmo cache)
+    const cacheKey = `${file.name}|${file.size}|${file.lastModified || ''}`
+    const cached = sessionStorage.getItem(`hr_ai_photo:${cacheKey}`)
+    if (cached) {
+      try {
+        const data = JSON.parse(cached)
+        setAiAnalysis(data)
+        if (data.suggested_type && CATEGORY_BY_ID[data.suggested_type]) {
+          onAiSuggest?.(data.suggested_type)
+        }
+        return
+      } catch { /* ignora cache ruim */ }
+    }
+
+    let cancelled = false
+    setAiLoading(true)
+    setAiAnalysis(null)
+
+    // Debounce: só chama a IA depois de 1.5s sem trocar foto
+    const debounceTimer = setTimeout(() => {
+      if (cancelled) return
+      const form = new FormData()
+      form.append('photo', file)
+      fetch('/api/ai/describe-photo', { method: 'POST', body: form })
+        .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+        .then(data => {
+          if (cancelled) return
+          try { sessionStorage.setItem(`hr_ai_photo:${cacheKey}`, JSON.stringify(data)) } catch {}
+          setAiAnalysis(data)
+          if (data.suggested_type && CATEGORY_BY_ID[data.suggested_type]) {
+            onAiSuggest?.(data.suggested_type)
+          }
+        })
+        .catch(() => { if (!cancelled) setAiAnalysis(null) })
+        .finally(() => { if (!cancelled) setAiLoading(false) })
+    }, 1500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(debounceTimer)
+    }
+  }, [file, onAiSuggest])
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach(track => track.stop())
@@ -91,6 +145,25 @@ export function PhotoCapture({ file, onChange }) {
           <img className="photo-preview" src={previewUrl} alt="Prévia da foto do report" />
         </div>
       ) : null}
+      {previewUrl && aiLoading && (
+        <div className="photo-ai-line photo-ai-line--loading">
+          <Sparkle size={12} weight="bold" aria-hidden="true" />
+          <span>Analisando a foto…</span>
+        </div>
+      )}
+      {previewUrl && !aiLoading && aiAnalysis?.ai_used && aiAnalysis.description && (
+        <div className="photo-ai-line">
+          <Sparkle size={12} weight="bold" aria-hidden="true" />
+          <span>
+            {aiAnalysis.description}
+            {aiAnalysis.suggested_type && CATEGORY_BY_ID[aiAnalysis.suggested_type] && (
+              <span className="photo-ai-suggest">
+                {' '}· sugerimos <strong>{CATEGORY_BY_ID[aiAnalysis.suggested_type].label}</strong>
+              </span>
+            )}
+          </span>
+        </div>
+      )}
       <button
         type="button"
         className="btn-secondary photo-capture-btn"

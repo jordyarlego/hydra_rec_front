@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { adminFetchJson } from '../../lib/adminFetch.js'
 
 const PRIORITY_COLORS = {
   urgente: 'var(--risk-severo)',
@@ -27,7 +28,7 @@ function PriorityBadge({ priority, score }) {
   )
 }
 
-export default function OfficialCrossingPanel({ reportId, token }) {
+export default function OfficialCrossingPanel({ reportId }) {
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -36,14 +37,11 @@ export default function OfficialCrossingPanel({ reportId, token }) {
     if (!reportId) return
     setLoading(true)
     setError(null)
-    fetch(`/api/admin/reports/${reportId}/official-crossing`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+    adminFetchJson(`/api/admin/reports/${reportId}/official-crossing`)
       .then(setData)
-      .catch(e => setError(String(e)))
+      .catch(e => setError(e.message || String(e)))
       .finally(() => setLoading(false))
-  }, [reportId, token])
+  }, [reportId])
 
   if (!reportId) return null
   if (loading) return <p className="ocp-loading">Carregando cruzamento oficial…</p>
@@ -64,11 +62,11 @@ export default function OfficialCrossingPanel({ reportId, token }) {
   return (
     <section className="ocp-panel">
       <h4 className="ocp-heading">Cruzamento urbano</h4>
+      <p className="ocp-summary">Usado para priorizar: bairro oficial, região administrativa, via próxima e reincidência.</p>
 
       <div className="ocp-geo-row">
         {data.neighborhood && <span className="ocp-chip">{data.neighborhood}</span>}
         {data.rpa           && <span className="ocp-chip ocp-chip--rpa">{data.rpa}</span>}
-        {data.microregion   && <span className="ocp-chip ocp-chip--micro">{data.microregion}</span>}
       </div>
 
       {data.nearest_road_name && (
@@ -108,7 +106,18 @@ export default function OfficialCrossingPanel({ reportId, token }) {
       )}
 
       {data.notes && (
-        <p className="ocp-notes">{data.notes}</p>
+        <p className="ocp-notes">
+          {(() => {
+            let txt = data.notes
+              .replace('chamado(s) oficial(is) similar(es)', 'registro(s) parecido(s)')
+            // Reformula "0 registro(s) parecido(s) em Xm" pra deixar claro que zero é bom sinal
+            const match = txt.match(/^0\s+registro\(s\)\s+parecido\(s\)\s+em\s+(\d+)m/i)
+            if (match) {
+              return `Nenhum chamado oficial semelhante a ${match[1]}m — sem reincidência conhecida na área.`
+            }
+            return txt
+          })()}
+        </p>
       )}
     </section>
   )

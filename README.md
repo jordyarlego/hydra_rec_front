@@ -1,393 +1,286 @@
-# HydraRec V3 — Frontend
+# HydraRec — Frontend (React 18 · Vite 6)
 
-> Estado atual: app público mapa-first + `/admin`, reports rápidos por clique no mapa, câmera real no report, fila offline e APAC como fonte meteorológica.
+App cívico mobile-first do projeto HydraRec — mapa do Recife com risco
+climático em tempo real, reports comunitários (com câmera + IA),
+notificações push, modo offline e painel administrativo separado em `/admin`.
 
-## V3 em produção
-
-- Público: `/` renderiza mapa fullscreen; sidebar é drawer.
-- Report: `QuickReportSheet` abre por clique no mapa/FAB, usa câmera via `getUserMedia` e fallback `capture`.
-- Offline: reports com falha de rede entram em IndexedDB e reaparecem como pins pendentes até reenvio automático.
-- Admin: `/admin` é lazy-loaded em chunk separado e usa Supabase Auth via `/api/public-config`.
-- Testes: `npm run test:e2e` cobre a11y, login admin e bloqueio sem GPS.
-
-```bash
-npm run build
-npm run test:e2e
-```
-
-Dashboard de risco climático hiperlocal para os bairros do Recife. Interface mobile-first estilo Apple Weather / Windy.
-
-> **TCC UFPE 2026** · Jordy Arlego
+> Projeto de TCC — UFPE 2026 — Jordy Arlego.
+> Backend: [hydra_rec_back](https://github.com/jordyarlego/hydra_rec_back)
 
 ---
 
-## Stack
+## 1. Stack
 
-| Camada | Tecnologia |
-|---|---|
-| Framework | React 18 + Vite 6 |
-| Estilo | CSS custom (sem framework), Outfit font |
-| Mapa | Leaflet 1.9.4 + CartoDB tiles (sem API key) |
-| Som | Web Audio API (singleton `soundManager.js`) |
-| Tempo real | WebSocket nativo (`hooks/useWebSocket.js`) |
-| PWA | Service Worker (`public/sw.js`) + `manifest.json` |
-| Push | VAPID Web Push (`hooks/usePushNotifications.js`) |
-| A11y | axe-core + Playwright E2E (`tests/e2e/`) |
-| Previsão 6h | Previsão meteorológica horária vinda de `/api/dashboard/{bairro}` (`forecast6h`) |
-| Alertas oficiais | APAC boletim oficial integrado via `hooks/useApac.js` + `ApacBanner.jsx` |
-| Rotas | `hooks/useRoute.js` + geocodificação Nominatim (OSM) + resultado desenhado no Leaflet (polyline + círculos de hazard) |
-| Ícones | `@phosphor-icons/react` — Car, Bicycle, Footprints, NavigationArrow, ArrowsDownUp |
-| Build output | `../back_end_hydrarec/static/` |
-
----
-
-## Fontes de dados consumidas pela interface
-
-| Fonte | Onde aparece |
-|---|---|
-| Open-Meteo | clima atual, previsão 6h/diária, métricas meteorológicas e fallback principal |
-| OpenWeatherMap | consenso de chuva e métricas atmosféricas quando `OPENWEATHER_KEY` está configurada |
-| INMET A301/A357 | chuva recente e métricas oficiais no consenso multi-fonte |
-| INMET Avisos | alertas oficiais na análise de trajeto |
-| APAC boletim | faixa oficial APAC e contexto da IA |
-| APAC Geoportal | estações de chuva em tempo real na análise de trajeto |
-| FEMAR | maré usada no Hydra Score |
-| OpenStreetMap/CartoDB | mapa e tiles Leaflet |
-| OSRM público | cálculo da rota carro/bike/a pé |
-| Nominatim | busca de endereço em rota e report por endereço próximo |
-| GeoJSON Prefeitura do Recife | limites oficiais dos bairros e detecção GPS por polígono |
-| Reports da comunidade | marcadores no mapa, lista de reports, alertas comunitários e push |
-
----
-
-## Rodando localmente
-
-```bash
-cd front_end_hydrarec
-npm install
-npm run dev      # http://localhost:5173
-```
-
-Para build de produção (gera os estáticos servidos pelo FastAPI):
-
-```bash
-npm run build
-```
-
-Para rodar os testes E2E + acessibilidade:
-
-```bash
-npm run test:e2e
-```
-
----
-
-## Features implementadas
-
-### PWA — Instalável, atualização automática, sem zoom no iOS
-O app é um Progressive Web App completo:
-- `public/manifest.json` — nome, ícone, tema, `display: standalone` (abre sem barra do browser)
-- `public/sw.js` — service worker registrado em `main.jsx` **apenas em produção** (em dev, SWs registrados são desregistrados automaticamente para evitar cache stale). Estratégia **network-first**: pass-through para a rede; push e notificationclick handlers integrados.
-- **Auto-update**: `main.jsx` chama `reg.update()` a cada 15 min e também no `visibilitychange` (volta a foco). Quando um SW novo instala, recebe `SKIP_WAITING` via `postMessage` e o `controllerchange` listener recarrega a página automaticamente. Resultado: PWA já instalado pega versão nova do Vercel/Render sem reinstalar.
-- **Sem zoom no iOS**: `index.html` usa `viewport-fit=cover` e CSS força `font-size: 16px` em todos os inputs no mobile (`@media max-width: 768px`). iOS Safari só aplica zoom quando input tem font < 16px, então essa regra resolve.
-- Meta tags `apple-mobile-web-app-capable` e `mobile-web-app-capable` para PWA standalone no iOS.
-- Instalável via botão "Adicionar à tela inicial" em Android/iOS/Desktop Chrome.
-
-### WebSocket — Dados em tempo real
-`hooks/useWebSocket.js` abre uma conexão persistente com `/ws/{bairro}`. O servidor envia o JSON completo do dashboard **a cada 5 minutos** (sem chamadas de IA — só dados meteorológicos, custo zero de tokens). Quando chega uma atualização, o estado do `useDashboard` é atualizado silenciosamente, sem reload visível.
-
-Reconexão automática com backoff exponencial: 2s → 4s → 8s... até 60s máximo. Troca de bairro fecha e reabre a conexão automaticamente.
-
-Por que não usar polling HTTP? WebSocket mantém uma única conexão TCP persistente em vez de abrir e fechar uma nova conexão a cada request — menos overhead de rede para updates frequentes.
-
-### Push Notifications — Alertas de risco com feedback visual
-`hooks/usePushNotifications.js` gerencia o ciclo completo de Web Push, com **estados explícitos** (`idle | subscribed | denied | unsupported | error | loading`) e mensagens de erro detalhadas:
-1. Aguarda SW estar pronto (`navigator.serviceWorker.ready`)
-2. **Pede permissão separadamente** (`Notification.requestPermission()`) — necessário em iOS Safari/PWA
-3. Busca chave VAPID em `GET /api/push/vapid-public-key` (erro explícito se backend não configurou `VAPID_PUBLIC_KEY`)
-4. Registra subscription via `PushManager.subscribe()`
-5. Envia para `POST /api/push/subscribe` (com erro se backend rejeitar)
-
-`components/common/PushBell.jsx` — sino no header da sidebar. **Toast visual** (verde de sucesso ou vermelho de erro) aparece quando o usuário clica, explicando exatamente o que aconteceu. Estados:
-- Laranja com ponto verde → ativo
-- Cinza → inativo
-- Vermelho → erro (com tooltip explicando)
-- Desabilitado → permissão bloqueada no browser
-- Spinner → loading durante subscribe/unsubscribe
-
-O backend dispara push quando o motor de alertas comunitários cria um alerta por concentração de reports recentes no mesmo bairro. VAPID (Voluntary Application Server Identification) é o padrão W3C para push sem depender de serviços pagos — funciona nativamente em Chrome, Firefox, Edge e Safari 16+.
-
-Quando funciona:
-- usuário precisa clicar no sino e permitir notificações;
-- em produção precisa estar em HTTPS;
-- no Android/Desktop aparece como notificação do Chrome/PWA;
-- no iOS precisa instalar o PWA na tela inicial.
-
-Quem recebe hoje: todos os navegadores inscritos no push. A filtragem por bairro/severidade está prevista pela estrutura do banco (`bairro`, `min_severity`), mas ainda não está aplicada no broadcast.
-
-Para testar sem esperar um alerta real, o backend possui `POST /api/push/test`, protegido por `PUSH_TEST_TOKEN`. O navegador precisa ter clicado no sino antes para existir assinatura salva.
-
-### A11y — Acessibilidade WCAG AA
-O app segue as diretrizes WCAG 2.1 nível AA. Verificação automatizada com `@axe-core/playwright` nos testes E2E.
-
-**O que foi implementado:**
-- **Focus trap nos modais** (`hooks/useFocusTrap.js`) — Tab/Shift+Tab ficam presos dentro do dialog aberto; Escape fecha; foco retorna ao elemento que abriu após fechar. Aplicado em `ReportModal` e `ScoreExplain`.
-- **`role="dialog"` correto** — posicionado no painel de conteúdo (não no backdrop), com `aria-labelledby` apontando para o `<h2>` do modal.
-- **`aria-live` em estados de loading** — Sidebar e MapStage usam `aria-live="polite"` + `aria-busy="true"` para que leitores de tela anunciem quando os dados carregam.
-- **`role="alert"` vs `role="status"`** — `AlertBanner` usa `role="alert"` (announce imediato) só para níveis MODERADO/ALTO/SEVERO; níveis não críticos usam `role="status"` (announce polido).
-- **Combobox acessível** — `BairroSearch` tem `aria-expanded`, `aria-controls`, `aria-activedescendant` corretos para que screen readers anunciem as sugestões durante a navegação por teclado.
-- **`aria-label` descritivo** em todos os elementos interativos: botões de ícone, seções de dados, forecast, wind row, ConfidenceBadge.
-- **Skip link** `<a href="#main">` visível no foco, para pular direto ao conteúdo principal.
-- **SVGs decorativos** com `aria-hidden="true"` para não serem lidos duas vezes.
-
-**Testes E2E (`tests/e2e/`):**
-- `app.spec.js` — fluxo principal (dashboard, toggle de tema, mobile drawer)
-- `a11y.spec.js` — scan axe WCAG AA da página principal, modais, skip link, navegação por teclado
-
-### Localização automática
-Ao abrir o app, usa `navigator.geolocation.getCurrentPosition` para detectar a posição do usuário e cruza o ponto GPS com o GeoJSON oficial dos bairros do Recife (`data/geo/recife_bairros_2023.geojson`). Se o ponto cair dentro de um polígono oficial, esse bairro é selecionado. A fórmula de **Haversine** contra `data/bairro_coords.js` fica apenas como fallback quando o GeoJSON não carregar ou quando o ponto estiver fora dos limites cadastrados.
-
-### Hydra Score + Explicação IA
-Anel circular animado (count-up, glow, shockwave em SEVERO) mostrando o score 0–100. Abaixo do anel, botão **"Por que?"** que chama `GET /api/explain/{bairro}` — a IA explica cada componente do score em linguagem acessível ao morador.
-
-O hook `useExplain.js` gerencia o estado (loading / text / error) e exibe via `ScoreExplain.jsx` (modal com renderer de markdown simples e focus trap).
-
-#### Cadeia de fallback da explicação IA (backend)
-
-```
-Tentativa 1: NVIDIA NIM — nvidia/llama-3.3-nemotron-super-49b-v1
-             ↓ falha
-Tentativa 2: NVIDIA NIM — meta/llama-3.3-70b-instruct
-             ↓ ambos falham OU sem NVIDIA_API_KEY
-Tentativa 3: fallback Python local — dados reais do Hydra Score, sem mock, sem API externa
-```
-
-A Tentativa 3 usa os valores reais de `risk['components']` e `risk['raw_values']` para gerar um texto estruturado. **Não é um mock** — os dados de chuva, maré, vulnerabilidade e altitude são os mesmos calculados pelo Hydra Score v2.
-
-Cache de 5 minutos no backend evita rechamadas.
-
-### Previsão 6h
-A sidebar exibe apenas a previsão meteorológica das próximas 6 horas (`forecast6h`) vinda do dashboard principal. O antigo bloco `RiskForecast` foi removido para reduzir ruído visual e evitar duplicar score com baixa confiança quando fontes externas caem.
-
-### ApacBanner — Boletim Oficial APAC
-Faixa de alerta oficial da Agência Pernambucana de Águas e Clima, exibida logo abaixo do `AlertBanner` quando há boletim ativo afetando a Região Metropolitana do Recife.
-
-`hooks/useApac.js` faz polling único em `GET /api/apac/boletim` (cache 30min no backend). `components/risk/ApacBanner.jsx` só renderiza quando `nivel !== 'SEGURO'`. Exibe:
-- Badge "APAC · Oficial" com cor do nível
-- Título do boletim + texto resumido
-- Link "Ver boletim completo →" para a página oficial
-- Timestamp da coleta
-
-Usa `role="alert"` + `aria-live="assertive"` — leitores de tela anunciam imediatamente.
-
-### AtmosphericBg
-Background animado que muda de gradiente e animações conforme a condição meteorológica atual: `Tempestade`, `Chuva Forte`, `Chuva`, `Garoa`, `Nublado`, `Ensolarado`. Inclui raios animados por CSS + som sincronizado via Web Audio API.
-
-### Sound Manager (`lib/soundManager.js`)
-Singleton Web Audio API com:
-- Chuva ambiente (intensidade leve / pesada)
-- Trovão aleatório agendado com `setTimeout`
-- Alerta sonoro quando score cruza 60 subindo
-- Click tátil em botões
-
-Sons são opcionais — persiste preferência em `localStorage`.
-
-### HeroCard
-Header do bairro com temperatura grande, condição, sensação térmica, umidade, bússola de vento animada (WindCompass), rajada e precipitação atual. Exibe "Sem chuva" quando `precip = 0`.
-
-### ChipsBar
-Métricas secundárias em chips horizontais com **drag-to-scroll no desktop** (mouse drag via `mousedown/move/up`). Chips: Risco de queimadura (UV), Umidade do ar (com label Seco/Agradável/Úmido/Muito úmido), Visibilidade, Nível do mar, Vento.
-
-### Sidebar (drawer no mobile)
-Painel esquerdo com todo o conteúdo: HeroCard, ChipsBar, ForecastHourly, AlertBanner, ConfidenceBadge, tabs (IA Narrativa / Análise de Trajeto / Fontes), NearbyReportsList, BairroSearch.
-
-**ConfidenceBadge:** pill não-alarmista mostrando número de fontes e nível de confiança (ALTA/MÉDIA). Com confiança BAIXA e 1 fonte, exibe texto discreto "1 fonte · dados parciais" — sem dot pulsante vermelho.
-
-No mobile: drawer deslizante, ativado pelo botão hamburguer no topo do mapa.
-
-### AIInsight (boletim operacional)
-Painel "Análise IA" na aba da sidebar. Exibe 4 linhas geradas pela IA como **fluxo narrativo sem labels** — as frases contextualizam a si mesmas:
-- **Diagnóstico** — risco atual com score, mm de chuva e fonte (ex.: "Score 53/100 em Santo Amaro — 13mm previstos pelo OpenWeatherMap, risco moderado")
-- **Localização** — rua ou ponto de atenção nomeado (ex.: "Canal da Tacaruna e Av. Dantas Barreto merecem atenção")
-- **Janela** — duração do cenário baseada em `rain_next_24h_mm` real
-- **Ação** — verbo no imperativo, executável agora; destacado em âmbar, sem label "Ação agora" redundante
-
-Badge "IA · [modelo]" muda dinamicamente (`Nemotron 49B`, `Llama 70B`, `Gemini Flash`, ou `Análise local`).
-
-**Enriquecimento com APAC:** `AIInsight` chama `useApac()` e passa o boletim oficial para a narrativa. Alerta SEVERO calibra o tom mesmo com score moderado.
-
-**Métricas multi-fonte:** `fusion.py` cruza umidade, vento e pressão de Open-Meteo + OWM + INMET, expondo médias consensuais.
-
-### RouteAnalysis — Rota inteligente com geocodificação e IA
-
-Input de endereço livre como Google Maps — o usuário digita qualquer rua, bairro ou ponto de referência; o componente consulta o **Nominatim** (OpenStreetMap, gratuito, sem chave) e exibe sugestões em dropdown.
-
-**Fluxo:**
-1. Usuário digita origem e destino (texto livre)
-2. Debounce 450ms → `GET nominatim.openstreetmap.org/search?q=...+Recife+PE` → dropdown de sugestões
-3. Seleção retorna lat/lon → enviado ao backend com o modal escolhido
-4. Backend calcula rota OSRM + riscos em tempo real (4 fontes em paralelo)
-5. Resultado: polyline azul desenhada no mapa Leaflet + círculos de hazard coloridos
-
-**Modo de transporte:** 🚗 Carro · 🚲 Bike · 🚶 A pé — cada modal usa um servidor OSRM diferente (`routed-car`, `routed-bike`, `routed-foot`) retornando geometria, distância e duração reais para o modal. O multiplicador de risco é aplicado sobre o score final.
-
-**Conteúdo do resultado:**
-- Score do trajeto + distância km + tempo estimado
-- **Chip APAC com descrição em português** (cor dinâmica por nível): "APAC: atenção preventiva — chuva possível" — não exibe sigla sem contexto
-- **Narrativa IA de 3 frases** específica para o modal e situação atual — sem rótulos "Frase 1"
-- Alertas ativos INMET para PE (quando houver)
-- Hazards: **30 pontos históricos** (Defesa Civil PE / APAC 2018-2024) em raio 0.6km da rota — cobre Boa Viagem (Shopping Recife, Canal dos Setúbal, Av. Domingos Ferreira), Santo Amaro (Canal da Tacaruna), Derby, Arruda, Jordão/Ibura, Tejipió e outros; + estações APAC com chuva ativa (tempo real)
-- Badge "Histórico" vs "Tempo real" em cada hazard
-- Rodapé: "Rota: OSRM/OSM · Estações: APAC Geoportal (RT) · Alertas: INMET"
-
-**Botão swap ⇅** inverte origem e destino com um clique.
-
-**Loading state profissional:** durante o cálculo, aparece um card com 3 anéis concêntricos animados nas cores do HydraRec (âmbar #e8a030) girando em direções alternadas + texto "Analisando seu trajeto · OSRM · APAC · INMET · Defesa Civil PE". O botão também mostra spinner enquanto carrega.
-
-**No mapa Leaflet:** ao calcular a rota, o mapa faz zoom automático para enquadrar o trajeto. Polyline azul + círculos coloridos (verde/laranja/vermelho) em cada hazard com popup descritivo. Botão "Trajeto" nos controles do mapa para ocultar/mostrar.
-
-### MapStage (HydraMap)
-Mapa Leaflet com:
-- Polígono oficial do bairro (GeoJSON da Prefeitura do Recife) — círculo de centroide é fallback
-- Marcadores de reports da comunidade (verde/laranja/vermelho por severidade)
-- Pontos críticos de alagamento (ícone ⚠)
-- GPS marker "Você está aqui" via `watchPosition`
-- **Polyline azul da rota calculada** + círculos de hazard coloridos (verde/laranja/vermelho) com popup descritivo
-- Zoom automático para enquadrar a rota ao analisar trajeto
-- Botões de camada: Reports · Críticos · GPS · **Trajeto** (aparece após calcular rota)
-- Zoom controls em `bottomleft` (não conflita com o FAB)
-
-### Extended FAB "Reportar"
-Botão flutuante laranja com ícone megafone + label + ping animado. Abre modal para criar ocorrência (tipo + severidade + descrição opcional). Posicionado em `bottom-right`, bem separado dos controles do mapa.
-
-### MobileNav
-Barra de navegação inferior fixa no mobile (z-index 70, sempre acima do sidebar). Alterna entre vista Painel e Mapa.
-
-### Tema Claro/Escuro
-Toggle persiste em `localStorage`. Todos os componentes adaptam via prop `light` e classes `.app-root.light`.
-
-### ReportModal
-Modal para reportar ocorrência usando GPS atual do navegador. O usuário escolhe entre:
-
-- **Estou aqui** — reporta exatamente na localização atual;
-- **Endereço próximo** — busca uma rua/ponto de referência via Nominatim, limitado a **1,5 km** do GPS atual.
-
-Campos: tipo, severidade, descrição livre. Focus trap via `useFocusTrap`.
-
-### Reports no mapa
-Os reports comunitários aparecem como marcadores no mapa e na lista "Reports próximos".
-
-Regra de exibição:
-- ficam visíveis por até **24 horas**;
-- só aparecem se `resolved = false`;
-- a busca usa raio padrão de **2km** ao redor do ponto consultado;
-- após enviar um report, o frontend recarrega a lista ao redor do ponto GPS reportado.
-
-Regra anti-spam:
-- o backend aceita **1 report a cada 5 minutos por IP hasheado**;
-- se o usuário tentar enviar outro dentro desse intervalo, a API retorna `429` com "Aguarde 5 minutos entre reports.".
-- o endereço reportado precisa estar a até **1,5 km da localização GPS atual**; pontos mais distantes são bloqueados no frontend e rejeitados pelo backend.
-
-Reports com 3+ ocorrências do mesmo tipo no mesmo bairro em até 1 hora podem gerar alerta comunitário e push notification.
-
----
-
-## Paleta de risco (fonte única: `lib/riskColors.js`)
-
-Todos os componentes (ScoreRing, AlertBanner, mapa, chips) usam esta paleta central:
-
-| Nível | Score | Cor |
+| Camada | Tecnologia | Por quê |
 |---|---|---|
-| SEGURO | 0–24 | `#22c55e` verde |
-| ATENÇÃO | 25–44 | `#facc15` amarelo |
-| MODERADO | 45–64 | `#f97316` laranja |
-| ALTO | 65–79 | `#ef4444` vermelho |
-| SEVERO | 80–100 | `#7c3aed` roxo |
+| Framework | **React 18.3** | concorrência + Suspense pra code-split do admin |
+| Build | **Vite 6** | HMR rápido, build pequeno (124KB gzip do bundle público) |
+| Mapa | **Leaflet 1.9** + **leaflet.markercluster** | tiles OSM, sem chave; cluster pra performance com N pins |
+| Ícones | **@phosphor-icons/react** | consistência visual, tree-shakeable |
+| Tempo real | **socket.io-client** | recebe alertas APAC e pins novos |
+| Testes unit | **Vitest** + **@testing-library/react** + **jsdom** | fast feedback |
+| E2E + A11y | **Playwright** + **@axe-core/playwright** | WCAG AA verification |
+| Lint | **ESLint 9** (flat config) | |
+| PWA | Service Worker custom + Web App Manifest | offline + push notifications |
+
+**Decisão proposital:** sem framework de routing (react-router), sem
+estado global (Redux/Zustand). `main.jsx` decide entre `App` e
+`AdminPage` pelo `window.location.pathname`. Estado vive em hooks
+locais. Justificativa: TCC, projeto < 50 componentes, lazy loading
+do admin já segura o bundle público em 124KB gzip.
 
 ---
 
-## Estrutura de diretórios
+## 2. Estrutura de pastas
 
 ```
-front_end_hydrarec/src/
-├── App.jsx                      # shell principal + geolocalização + hooks
-├── hooks/
-│   ├── useDashboard.js          # fetch /api/dashboard/{bairro}
-│   ├── useReports.js            # fetch + submit reports
-│   ├── useRoute.js              # análise de trajeto
-│   ├── useNarrative.js          # fetch narrativa IA (model_used dinâmico)
-│   ├── useExplain.js            # fetch /api/explain/{bairro}
-│   ├── useWebSocket.js          # WS /ws/{bairro} com reconexão automática
-│   ├── usePushNotifications.js  # subscribe/unsubscribe VAPID push
-│   ├── useFocusTrap.js          # trap Tab/Shift+Tab dentro de dialogs abertos
-│   ├── useApac.js               # fetch /api/apac/boletim (boletim oficial APAC)
-│   └── useTheme.js              # dark/light + localStorage
-├── lib/
-│   ├── api.js                   # fetch helpers
-│   ├── riskColors.js            # paleta de cores por nível (fonte única)
-│   └── soundManager.js          # Web Audio API singleton
-├── data/
-│   ├── bairro_coords.js         # 73 bairros com lat/lon (centroides IBGE)
-│   ├── bairros.js               # lista de nomes para autocomplete
-│   └── pontos_criticos.js       # pontos conhecidos de alagamento
-├── components/
-│   ├── effects/
-│   │   ├── AtmosphericBg.jsx    # background animado por condição
-│   │   └── HydraLogo.jsx
-│   ├── loading/
-│   │   └── LoadingScreen.jsx    # splash 4.3s com progresso fake
-│   ├── layout/
-│   │   ├── Sidebar.jsx          # painel esquerdo completo
-│   │   ├── MapStage.jsx         # wrapper do mapa + FAB
-│   │   └── MobileNav.jsx        # nav inferior mobile
-│   ├── map/
-│   │   └── HydraMap.jsx         # Leaflet + polígono bairro + GPS + reports
-│   ├── weather/
-│   │   ├── HeroCard.jsx         # temperatura + score + vento + botão Por que?
-│   │   ├── ChipsBar.jsx         # chips drag-scroll
-│   │   ├── ForecastHourly.jsx   # previsão 6h com aria-label por slot
-│   │   └── WindCompass.jsx
-│   ├── risk/
-│   │   ├── ScoreRing.jsx        # anel SVG animado com aria-label descritivo
-│   │   ├── ScoreExplain.jsx     # modal explicação IA + focus trap
-│   │   ├── AlertBanner.jsx      # role=alert (crítico) / role=status (normal)
-│   │   ├── ApacBanner.jsx       # boletim oficial APAC (role=alert, só se nivel≠SEGURO)
-│   │   └── ConfidenceBadge.jsx
-│   ├── ai/
-│   │   └── AIInsight.jsx        # boletim IA com badge de modelo dinâmico
-│   ├── route/
-│   │   └── RouteAnalysis.jsx    # análise de trajeto
-│   ├── benchmark/
-│   │   └── DifferentialTable.jsx
-│   ├── common/
-│   │   ├── BairroSearch.jsx     # combobox acessível: aria-expanded/controls/activedescendant
-│   │   ├── PushBell.jsx         # toggle de notificações push
-│   │   ├── IconBtn.jsx
-│   │   └── LiveClock.jsx
-│   └── reports/
-│       ├── NearbyReportsList.jsx
-│       └── ReportModal.jsx      # dialog acessível + focus trap
-├── styles/
-│   └── app.css                  # ~1400 linhas, 20 seções
-└── main.jsx
-tests/e2e/
-├── app.spec.js                  # fluxo principal + mobile
-└── a11y.spec.js                 # scan axe WCAG AA + skip link + teclado
+front_end_hydrarec/
+├── public/                       # estáticos servidos pela raiz
+├── src/
+│   ├── main.jsx                  # entry, decide App vs AdminPage, registra SW
+│   ├── App.jsx                   # shell público (sidebar + mapa)
+│   │
+│   ├── pages/
+│   │   └── AdminPage.jsx         # shell admin (login + 4 seções)
+│   │
+│   ├── components/
+│   │   ├── layout/               # Sidebar, MapStage, MobileNav
+│   │   ├── map/                  # HydraMap, EmojiCategoryPicker
+│   │   ├── reports/              # PhotoCapture, QuickReportSheet, ReportPinPopup
+│   │   ├── weather/              # HeroCard, ForecastHourly, WeatherOutlook, WindCompass, Sparkline
+│   │   ├── risk/                 # ScoreRing, ScoreExplain, ApacBanner, AlertBanner
+│   │   ├── ai/                   # AIInsight (narrativa) + DifferentialTable
+│   │   ├── panels/               # ChipsBar (categorias)
+│   │   ├── common/               # BairroSearch, IconBtn, LiveClock, SchemaWarning, PushBell, Chip
+│   │   ├── loading/              # LoadingScreen
+│   │   ├── effects/              # AtmosphericBg + HydraLogo (background animado)
+│   │   ├── benchmark/            # debug, escondido em prod
+│   │   └── admin/                # 10 componentes do painel admin
+│   │       ├── AdminLogin.jsx
+│   │       ├── AdminLayout.jsx
+│   │       ├── AdminReportsTable.jsx       # lista com 3 cards-bucket (Triagem v2)
+│   │       ├── AdminReportDetail.jsx       # painel direito, 3 botões de decisão
+│   │       ├── AdminTickets.jsx            # Kanban 4 colunas (Triagem v2)
+│   │       ├── AdminMetrics.jsx            # KPIs e top bairros
+│   │       ├── BatchApproveCard.jsx        # aprovar lote do bucket auto_validado
+│   │       ├── TicketCreateForm.jsx        # form org+título pré-preenchidos
+│   │       ├── OfficialDataStatus.jsx      # status das bases oficiais
+│   │       ├── OfficialCrossingPanel.jsx   # bairro/RPA/via/reincidência
+│   │       ├── HotspotsMapLayer.jsx        # camada de hotspots oficiais no mapa
+│   │       ├── ExportPanel.jsx             # CSV/GeoJSON
+│   │       └── adminLabels.js              # i18n local de status/prioridade
+│   │
+│   ├── hooks/
+│   │   ├── useAuth.js                      # sessão admin (Supabase token)
+│   │   ├── useDashboard.js                 # /api/dashboard/{bairro}
+│   │   ├── useReports.js                   # CRUD + fila offline
+│   │   ├── useNarrative.js                 # narrativa IA
+│   │   ├── useExplain.js                   # explicação do HydraScore
+│   │   ├── useApac.js                      # boletins + outlook
+│   │   ├── useWebSocket.js                 # /ws (alertas tempo real)
+│   │   ├── usePushNotifications.js         # VAPID subscribe + UI
+│   │   ├── useTheme.js                     # dark/light persistido
+│   │   └── useFocusTrap.js                 # modal A11y
+│   │
+│   ├── lib/                                # adapters, NÃO componentes
+│   │   ├── api.js                          # wrapper fetch público (sem auth)
+│   │   ├── auth.js                         # Supabase login + refresh proativo
+│   │   ├── adminFetch.js                   # wrapper com auto-refresh + retry em 401
+│   │   ├── offlineReports.js               # IndexedDB queue
+│   │   ├── bairroGeo.js                    # point-in-polygon nos 73 bairros
+│   │   ├── riskColors.js                   # tokens de cor por nível de risco
+│   │   └── soundManager.js                 # toques de alerta por condição APAC
+│   │
+│   ├── data/
+│   │   ├── bairro_coords.js                # centro dos 73 bairros
+│   │   ├── bairros.js                      # lista pra autocomplete
+│   │   ├── pontos_criticos.js              # pontos de inundação histórica
+│   │   ├── report_categories.js            # 9 categorias com ícone PNG + emoji
+│   │   └── geo/                            # GeoJSON dos bairros (carregado on-demand)
+│   │
+│   ├── styles/
+│   │   ├── tokens.css                      # CSS variables (cores, espaçamento, raios)
+│   │   ├── globals.css                     # reset + body
+│   │   └── app.css                         # tudo o resto (componentes, dark/light, responsive)
+│   │
+│   └── assets/                             # PNGs categorias + ícones marca
+│
+├── tests/                                  # vitest unit
+├── e2e/                                    # playwright (a11y axe-core)
+├── public/                                 # manifest, sw.js, icon.svg
+├── vite.config.js                          # proxy /api + /ws pra :8000
+├── package.json
+└── eslint.config.js
 ```
 
 ---
 
-## Bairros suportados
+## 3. Fluxo principal (cidadão)
 
-73 bairros do Recife com coordenadas de centroide para fallback. A detecção automática principal usa ponto-dentro-do-polígono no GeoJSON oficial; Haversine só entra se o limite oficial não estiver disponível.
-
-Usuário pode sempre trocar manualmente via **BairroSearch** (combobox com autocomplete e navegação por teclado).
+```
+1. main.jsx → App (rota /)
+2. App.jsx:
+   • Loading screen (3-frame atmosphere)
+   • Geolocalização do usuário (navigator.geolocation)
+   • Hook useDashboard pega HydraScore do bairro
+   • Hook useReports + offlineReports.js: fila local IndexedDB
+   • Hook useWebSocket recebe alertas APAC em tempo real
+3. Render:
+   • Sidebar  → HeroCard (chuva agora + outlook)
+                ScoreRing (HydraScore visual)
+                ApacBanner (boletim oficial se houver)
+                ChipsBar (filtros do mapa)
+                Categorias → QuickReportSheet ao clicar
+   • MapStage → HydraMap (Leaflet) com pins de reports
+                Hotspots oficiais como overlay
+   • MobileNav (drawer abas em <900px)
+4. Cidadão tira foto → POST /api/ai/describe-photo (preview na hora)
+                    → IA sugere categoria + descrição
+                    → ao confirmar: POST /api/reports/with-photo
+                    → backend processa pipeline IA + cruzamento oficial
+                    → WebSocket avisa todos os apps abertos do novo pin
+5. SW intercepta fetch quando offline → fila no IndexedDB
+   → flusha quando volta online
+```
 
 ---
 
-## PWA
+## 4. Fluxo admin (Triagem v2)
 
-- `public/manifest.json`: nome, ícone, cores, `display: standalone`
-- `public/icon.svg`: gota azul com anel dourado (tema HydraRec)
-- `index.html`: `theme-color: #1a1a1a`
-- Service Worker registrado só em `PROD` — em dev, SWs existentes são desregistrados automaticamente
+```
+/admin → main.jsx detecta path → carrega AdminPage (lazy)
+
+AdminPage:
+  • useAuth → escuta evento hydrarec-auth-expired
+  • Se sem sessão: AdminLogin (Supabase signIn)
+  • Se sem role admin: tela "Sem permissão"
+  • Senão: AdminLayout com 4 abas
+
+Abas:
+  1. /admin/reports  → AdminReportsTable + AdminReportDetail
+     • 3 cards-bucket no topo: Precisa de você / Filtrados / Auto-validados
+     • Pill colorido de veredito por linha
+     • Detalhe lateral com:
+        - Card "Apoio da IA" com banner colorido (Suspeito/Inconclusivo/Coerente/Alta)
+        - Sugestão de órgão destino
+        - Banner amarelo de duplicata (se houver)
+        - 3 botões: Validar e gerar chamado | Marcar revisão | Rejeitar
+        - Validar → TicketCreateForm (org + título auto)
+        - Rejeitar → radio buttons (duplicado | foto inválida | fora de escopo | trote)
+     • BatchApproveCard quando bucket = auto_validado
+
+  2. /admin/tickets  → AdminTickets (Kanban)
+     • 4 colunas: Aberto | Em atendimento | Resolvido | Fechado
+     • Card pisca quando passa SLA
+     • Borda lateral colorida por prioridade
+     • Botão "→ próxima coluna" pra mover
+
+  3. /admin/metrics  → AdminMetrics
+     • KPIs últimas 24h, pendentes, validados, resolvidos
+     • Top bairros (barras horizontais)
+
+  4. /admin/official → OfficialDataStatus + ExportPanel
+     • Botão "Importar agora" das bases EMLURB/Defesa Civil
+     • Exportar CSV / GeoJSON
+```
+
+**Auth refresh proativo (Triagem v2):**
+
+```
+lib/auth.js
+  • signIn salva access_token + refresh_token + expires_at
+  • getSessionFresh() refresh se exp <= 60s
+  • dedup: _refreshPromise compartilhado
+
+lib/adminFetch.js
+  • Wraps fetch com Authorization automático
+  • Se 401 → tenta refresh + retry 1x
+  • Se ainda falhar → dispatch hydrarec-auth-expired
+  • AdminPage escuta evento → toast + tela de login (sem perder estado)
+```
+
+---
+
+## 5. PWA + Offline
+
+- **Service Worker** (`public/sw.js`): cache de assets + bypass de `/api`
+- **Manifest**: instalável (`add to home screen`)
+- **Fila offline** (`lib/offlineReports.js`): grava em IndexedDB
+  quando POST falha; flusha ao voltar online
+- **Auto-update**: SW checa update a cada 15min + ao focar a aba
+- **Push Notifications**: VAPID via `usePushNotifications.js` + `PushBell.jsx`
+
+---
+
+## 6. A11y (WCAG AA)
+
+- `useFocusTrap.js`: modais não escapam o foco (Tab cycling)
+- Roles ARIA explícitos: `role="alert"`, `role="status"`, `role="tab"`
+- Combobox acessível em `BairroSearch.jsx`
+- Contraste verificado pelo axe-core no E2E (`playwright + @axe-core`)
+- `<button type="button">` em tudo que não é submit
+- Skip-links e foco visível garantidos pelos tokens CSS
+
+---
+
+## 7. Design system
+
+`src/styles/tokens.css`:
+
+- Cores semânticas: `--risk-seguro / atencao / moderado / alto / severo`
+- Cores de marca: `--brand-accent`, `--brand-bg`, `--brand-fg`
+- Espaçamento: escala `--space-1 ... --space-6` (4 → 32px)
+- Raios: `--radius-sm / md / lg`
+- Sombras: `--shadow-sm / md / lg`
+
+`src/styles/app.css`:
+
+- Tema escuro default + `.app-root.light` overrides
+- Mobile-first com breakpoints em 700 / 900 / 1100px
+- 280 linhas adicionais no fim pra Triagem v2 (kanban, buckets, veredito)
+
+---
+
+## 8. Setup local
+
+```bash
+# 1. Node 20+ + npm
+npm install
+
+# 2. (opcional) variáveis Vite
+# .env.local com:
+# VITE_SUPABASE_URL=https://xxxx.supabase.co
+# VITE_SUPABASE_ANON_KEY=eyJh...
+# Se vazias, o front pega de /api/public-config no backend
+
+# 3. Rodar dev (proxy /api + /ws → :8000)
+npm run dev
+# abre http://localhost:5173
+
+# 4. Testes
+npm test           # vitest unit
+npm run test:e2e   # playwright + axe
+
+# 5. Build prod
+npm run build      # sai em ../back_end_hydrarec/static/
+```
+
+---
+
+## 9. Comunicação com backend
+
+- **REST**: `/api/*` proxy do Vite para `:8000` (ver `vite.config.js`)
+- **WebSocket**: `/ws` proxy idem; usado pelo `useWebSocket.js` pra
+  alertas APAC (boletim novo, mudança de severidade)
+- **Public config**: backend serve `GET /api/public-config` com a anon
+  key Supabase — frontend usa pra autenticação admin (sem `.env` local)
+
+---
+
+## 10. Roadmap
+
+Fases 1-11 entregues. **Triagem v2** (2026-05-16) — Kanban admin,
+3 buckets IA, refresh token, veredito visual. Backlog do próximo
+ciclo (correções UX, copy didática, kanban Trello-like, IA prioriza
+pela foto) em `docs/superpowers/specs/2026-05-16-feedback-ciclo-2-backlog.md`
+no monorepo raiz.
