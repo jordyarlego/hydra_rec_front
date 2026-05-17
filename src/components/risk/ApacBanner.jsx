@@ -7,9 +7,9 @@ import { getRiskColor } from '../../lib/riskColors.js'
    ════════════════════════════════════════════════════ */
 
 const NIVEL = {
-  SEVERO:   { label: 'Chuva muito forte agora', acao: 'Evite sair de casa. Risco de alagamento e deslizamento.' },
-  ALTO:     { label: 'Chuva forte agora',        acao: 'Evite ruas baixas e dirigir por canais.' },
-  MODERADO: { label: 'Chuva moderada agora',     acao: 'Cuidado em vias baixas se for sair.' },
+  SEVERO:   { label: 'Chuva muito forte na região', acao: 'Evite sair de casa. Risco de alagamento e deslizamento.' },
+  ALTO:     { label: 'Chuva forte na região',        acao: 'Evite ruas baixas e dirigir por canais.' },
+  MODERADO: { label: 'Chuva moderada na região',     acao: 'Cuidado em vias baixas se for sair.' },
 }
 
 function timeAgoLong(captured) {
@@ -25,52 +25,36 @@ function timeAgoLong(captured) {
 function exactTime(captured) {
   if (!captured) return null
   try {
-    return new Date(captured).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    return new Date(captured).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Recife',
+    })
   } catch {
     return null
   }
 }
 
-function pretty(raw) {
-  if (!raw) return ''
-  let s = String(raw).trim().replace(/\s+\d+\s*$/, '')
-  if (/[A-Z]{3,}/.test(s) && s === s.toUpperCase()) {
-    s = s.split(' ').map(w => {
-      const l = w.toLowerCase()
-      if (['de', 'da', 'do', 'das', 'dos', 'e'].includes(l)) return l
-      return w.charAt(0) + w.slice(1).toLowerCase()
-    }).join(' ')
-    s = s.charAt(0).toUpperCase() + s.slice(1)
-  }
-  return s
-}
-
-function formatPlace(estacao) {
-  if (!estacao?.nome) return null
-  const nome = pretty(estacao.nome)
-  const cidade = pretty(estacao.cidade)
-  return cidade ? `${nome} (${cidade})` : nome
-}
-
 export function ApacBanner({ boletim, light = false }) {
-  // Não mostra banner quando: sem boletim, seguro, ou atenção (garoa leve)
   if (!boletim) return null
   if (boletim.nivel === 'SEGURO' || boletim.nivel === 'ATENCAO') return null
 
   const meta = NIVEL[boletim.nivel]
   if (!meta) return null
 
-  // Sem estações com chuva real → não mostra
+  // Só mostra se há pelo menos 1 estação com chuva real (≥0.5mm)
   const estacoes = (boletim.estacoes || []).filter(e => Number(e.mm ?? e.chuva_mm ?? 0) >= 0.5)
   if (estacoes.length === 0) return null
 
   const color = getRiskColor(boletim.nivel)
   const ago = timeAgoLong(boletim.coletado_em)
   const at  = exactTime(boletim.coletado_em)
+  const totalEstacoes = estacoes.length
+  const maxMm = Math.max(...estacoes.map(e => Number(e.mm ?? e.chuva_mm ?? 0)))
 
-  // Texto explicativo cita os locais reais
-  const lugares = estacoes.slice(0, 3).map(formatPlace).filter(Boolean).join(', ')
-
+  /* ApacBanner agora é APENAS o alerta agregado da RMR + ação cidadã.
+     A lista de estações vive UMA VEZ no WeatherOutlook abaixo, evitando
+     repetir os mesmos nomes em dois cards diferentes.                */
   return (
     <div
       className={`apac-banner${light ? ' light' : ''}`}
@@ -80,12 +64,12 @@ export function ApacBanner({ boletim, light = false }) {
     >
       <div className="apac-banner-header">
         <span className="apac-nivel" style={{ color }}>{meta.label}</span>
-        {at && <span className="apac-fresh" title={ago || ''}>{at}</span>}
+        {at && <span className="apac-fresh" title={ago || ''}>{at} · Recife</span>}
       </div>
 
       <p className="apac-texto">
-        Está chovendo em <strong>{lugares}</strong>
-        {estacoes.length > 3 && ` e mais ${estacoes.length - 3}`}.
+        <strong>{totalEstacoes}</strong> {totalEstacoes === 1 ? 'estação registra' : 'estações registram'} chuva agora,
+        pico de <strong>{maxMm.toFixed(1)} mm/h</strong>.
       </p>
 
       <p className="apac-acao">{meta.acao}</p>

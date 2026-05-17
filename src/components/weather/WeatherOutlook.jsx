@@ -61,14 +61,6 @@ function formatPlace(st) {
   return city ? `${name}, ${city}` : name
 }
 
-function nearestDirection(km) {
-  if (km == null) return ''
-  if (km < 5)  return `perto daqui (${km} km)`
-  if (km < 15) return `a ${km} km daqui`
-  if (km < 30) return `a ${km} km — um pouco distante`
-  return `a ${km} km — mais longe da cidade`
-}
-
 const POLL_MS = 5 * 60 * 1000
 
 export function WeatherOutlook({ lat, lon, light = false }) {
@@ -94,107 +86,100 @@ export function WeatherOutlook({ lat, lon, light = false }) {
   if (error)   return <p className="outlook-state outlook-state--error">Dados climáticos indisponíveis.</p>
   if (!data)   return null
 
-  // Dedup
+  /* Vista ÚNICA: une nearest_stations + top_rmr num só array deduplicado,
+     ordenado por distância. Categoriza por raio pra cidadão ler hierarquia:
+       • PERTO    ≤ 5 km   (bairro / vizinhança)
+       • MÉDIO    5–15 km  (mesma cidade / RMR vizinha)
+       • LONGE    > 15 km  (outros municípios)
+     Não há mais "está caindo X em N" + "X a caminho" — uma lista só,
+     hierárquica, com chip de intensidade. */
   const seen = new Set()
-  const nearest = (data.nearest_stations || []).filter(s => {
-    const k = `${s.name}|${s.lat?.toFixed(3)}|${s.lon?.toFixed(3)}`
-    if (seen.has(k)) return false
-    seen.add(k); return true
-  })
-
-  const maxNearbyMm = Math.max(0, ...nearest.map(s => Number(s.rain_mm || 0)))
-  const aggregateLevel = intensityLevel(maxNearbyMm)
-
-  // "Outros bairros" — só com chuva ≥ 0.5
-  const nearestNames = new Set(nearest.map(s => (s.name || '').toLowerCase()))
-  const elsewhere = (data.top_rmr || [])
-    .filter(s => !nearestNames.has((s.name || '').toLowerCase()) && Number(s.rain_mm || 0) >= 0.5)
+  const merged = [...(data.nearest_stations || []), ...(data.top_rmr || [])]
+    .filter(s => {
+      const k = `${(s.name || '').toLowerCase()}|${s.lat?.toFixed(3)}|${s.lon?.toFixed(3)}`
+      if (seen.has(k)) return false
+      seen.add(k); return true
+    })
     .sort((a, b) => (a.distance_km ?? 9999) - (b.distance_km ?? 9999))
-    .slice(0, 3)
 
-  const maxElsewhereMm = Math.max(0, ...elsewhere.map(s => Number(s.rain_mm || 0)))
-  const alertLevel = intensityLevel(maxElsewhereMm)
+  const perto  = merged.filter(s => (s.distance_km ?? 9999) <= 5)
+  const medio  = merged.filter(s => (s.distance_km ?? 9999) >  5 && (s.distance_km ?? 9999) <= 15)
+  const longe  = merged.filter(s => (s.distance_km ?? 9999) >  15)
 
-  // Resumo agregado — uma frase só, sem repetir o HeroCard
+  const chovendoPerto = perto.filter(s => intensityLevel(s.rain_mm) > 0).length
+  const maxPertoMm = Math.max(0, ...perto.map(s => Number(s.rain_mm || 0)))
+  const aggregateLevel = intensityLevel(maxPertoMm)
+
+  // Resumo único e direto
   let summary
-  if (nearest.length === 0) {
-    summary = 'Sem sensores de chuva próximos.'
-  } else if (aggregateLevel === 0) {
-    const ext = nearest.length === 1
-      ? `na estação mais próxima`
-      : `em ${nearest.length} estações próximas`
-    summary = `Sem chuva ${ext}.`
+  if (perto.length === 0) {
+    summary = `Sem sensores num raio de 5 km.`
+  } else if (chovendoPerto === 0) {
+    summary = `Sem chuva nas ${perto.length} estações no seu raio.`
   } else {
-    const raining = nearest.filter(s => intensityLevel(s.rain_mm) > 0).length
-    summary = raining === 1
-      ? `Está caindo ${intensityLabel(aggregateLevel).toLowerCase()} em 1 estação por perto.`
-      : `Está caindo ${intensityLabel(aggregateLevel).toLowerCase()} em ${raining} estações por perto.`
+    summary = chovendoPerto === 1
+      ? `${intensityLabel(aggregateLevel)} em 1 das ${perto.length} estações próximas.`
+      : `${intensityLabel(aggregateLevel)} em ${chovendoPerto} das ${perto.length} estações próximas.`
   }
+
+  const renderGroup = (title, subtitle, items) => items.length === 0 ? null : (
+    <div className="wo-group">
+      <div className="wo-group-head">
+        <span className="wo-group-title">{title}</span>
+        <span className="wo-group-sub">{subtitle}</span>
+      </div>
+      <ul className="wo-list">
+        {items.map(st => {
+          const mm = Number(st.rain_mm || 0)
+          const lvl = intensityLevel(mm)
+          return (
+            <li className="wo-item" key={`${st.name}-${st.distance_km}`}>
+              <span className="wo-item-name">
+                {formatPlace(st)}
+                {st.distance_km != null && (
+                  <span className="wo-item-dist"> · {st.distance_km} km</span>
+                )}
+              </span>
+              <span
+                className={`wo-item-chip wo-chip-lvl-${lvl}`}
+                style={{ color: rainColor(mm, light) }}
+                title={intensityLabel(lvl)}
+              >
+                {mm.toFixed(1)} mm/h
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
 
   return (
     <div className={`wo${light ? ' wo--light' : ''}`}>
-      {/* Card principal */}
       <div className="wo-card">
         <div className="wo-card-row">
           <span
             className="wo-dot"
-            style={{ background: rainColor(maxNearbyMm, light) }}
+            style={{ background: rainColor(maxPertoMm, light) }}
             aria-hidden="true"
           />
           <p className="wo-summary">{summary}</p>
         </div>
 
-        {nearest.length > 0 && (
+        {merged.length > 0 && (
           <details className="wo-details">
-            <summary>Ver sensores ({nearest.length})</summary>
-            <ul className="wo-list">
-              {nearest.map(st => (
-                <li className="wo-item" key={`${st.name}-${st.distance_km}`}>
-                  <span className="wo-item-name">
-                    {formatPlace(st)}
-                    <span className="wo-item-dist"> · {st.distance_km} km</span>
-                  </span>
-                  <span className="wo-item-mm" style={{ color: rainColor(st.rain_mm, light) }}>
-                    {Number(st.rain_mm || 0).toFixed(1)} mm/h
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <summary>Ver pluviômetros ({merged.length})</summary>
+            <p className="wo-edu">
+              Pluviômetros físicos da rede CEMADEN/APAC. Cada um mede chuva
+              no ponto exato onde está instalado e atualiza a cada 5 min.
+              Por isso vizinhos podem ler valores bem diferentes.
+            </p>
+            {renderGroup('Perto',  `≤ 5 km — seu bairro e vizinhança`,             perto)}
+            {renderGroup('Médio',  `5 a 15 km — outras zonas de Recife / RMR`,    medio)}
+            {renderGroup('Longe',  `mais de 15 km — outros municípios da região`, longe)}
           </details>
         )}
       </div>
-
-      {/* Aviso lateral: chuva chegando */}
-      {elsewhere.length > 0 && (
-        <div className={`wo-alert wo-alert--lvl-${alertLevel}`}>
-          <div className="wo-alert-head">
-            <span className="wo-alert-icon" aria-hidden="true">↘</span>
-            <span className="wo-alert-title">
-              {intensityLabel(alertLevel)} a caminho
-            </span>
-          </div>
-          <p className="wo-alert-desc">
-            {elsewhere.length === 1
-              ? `Está chovendo ${nearestDirection(elsewhere[0].distance_km)}. Vale acompanhar — o tempo pode mudar.`
-              : `${elsewhere.length} estações da região registram chuva agora — listadas por proximidade.`}
-          </p>
-          <ul className="wo-alert-list">
-            {elsewhere.map(st => (
-              <li key={st.name}>
-                <span>
-                  {formatPlace(st)}
-                  {st.distance_km != null && (
-                    <span className="wo-alert-dist"> · {st.distance_km} km</span>
-                  )}
-                </span>
-                <strong style={{ color: rainColor(st.rain_mm, light) }}>
-                  {Number(st.rain_mm).toFixed(1)} mm/h
-                </strong>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   )
 }
