@@ -25,51 +25,21 @@ function makeCriticoIcon() {
   })
 }
 
-/** Pin de report com ícone da categoria + cor da severidade.
- *  Usa L.divIcon — o pin (SVG do path) é inline, e o ÍCONE da categoria
- *  é uma <img> HTML normal posicionada absoluta dentro. Necessário porque
- *  SVG em data-URL NÃO carrega <image href> externo (bloqueio CORS).
+/** Pin estilo Waze — círculo branco com borda colorida pela severidade
+ *  e PNG da categoria DENTRO. SEM gota. SEM SVG composto. Simples.
+ *  L.icon usa cat.icon direto como iconUrl → <img class> que CARREGA
+ *  sempre. Cor da severidade vai via className → CSS aplica border.
  */
 function makeReportIcon(report) {
   const cat = CATEGORY_BY_ID[report.type] || CATEGORY_BY_ID.outro
-  const color = SEV_COLOR[report.severity] || '#888'
+  const sev = report.severity || 'moderado'
   const pendingClass = report.pending_offline ? ' is-pending' : ''
-  // Construo o pin via DOM API (não string innerHTML) — garante que a
-  // <img> realmente carrega e que classes/styles aplicam sem escape.
-  const wrap = document.createElement('span')
-  wrap.className = 'hr-pin' + pendingClass
-
-  // SVG da gota colorida pela severidade
-  const svgNS = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(svgNS, 'svg')
-  svg.setAttribute('viewBox', '0 0 36 44')
-  svg.setAttribute('width', '36')
-  svg.setAttribute('height', '44')
-  const path = document.createElementNS(svgNS, 'path')
-  path.setAttribute('d', 'M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z')
-  path.setAttribute('fill', color)
-  path.setAttribute('stroke', 'rgba(0,0,0,.45)')
-  path.setAttribute('stroke-width', '1.2')
-  svg.appendChild(path)
-  wrap.appendChild(svg)
-
-  // Bolinha branca com PNG da categoria dentro
-  const iconBg = document.createElement('span')
-  iconBg.className = 'hr-pin-iconbg'
-  const img = document.createElement('img')
-  img.src = cat.icon                     // URL Vite-resolved — sempre carrega
-  img.alt = ''
-  img.className = 'hr-pin-icon'
-  img.setAttribute('aria-hidden', 'true')
-  iconBg.appendChild(img)
-  wrap.appendChild(iconBg)
-
-  return L.divIcon({
-    className: 'hr-pin-wrap',
-    html: wrap,
-    iconSize: [36, 44],
-    iconAnchor: [18, 44],
-    popupAnchor: [0, -38],
+  return L.icon({
+    iconUrl: cat.icon,           // PNG da categoria diretamente (alagamento.png, etc)
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],        // centro do círculo na coordenada GPS
+    popupAnchor: [0, -22],
+    className: `hr-pin-waze sev-${sev}${pendingClass}`,
   })
 }
 

@@ -6948,3 +6948,29 @@ a:hover { color: #f5b347; }
   color: #06121e !important;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   PIN ESTILO WAZE — L.icon = <img>. Aplica borda colorida pela
+   severidade direto na <img> via className. PNG da categoria sempre
+   aparece (Leaflet carrega como qualquer iconUrl). Sem composto.
+   ═══════════════════════════════════════════════════════════════ */
+.leaflet-marker-icon.hr-pin-waze {
+  border-radius: 50% !important;
+  border: 3px solid #888 !important;
+  background: #ffffff !important;
+  padding: 5px !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.4) !important;
+  object-fit: contain !important;
+  width: 40px !important;
+  height: 40px !important;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.leaflet-marker-icon.hr-pin-waze:hover {
+  transform: scale(1.08);
+}
+.hr-pin-waze.sev-leve     { border-color: #3ad682 !important; }
+.hr-pin-waze.sev-moderado { border-color: #fb923c !important; }
+.hr-pin-waze.sev-grave    { border-color: #f87171 !important; box-shadow: 0 3px 14px rgba(248,113,113,.55) !important; }
+.hr-pin-waze.is-pending   { opacity: .6; border-style: dashed !important; }
+
