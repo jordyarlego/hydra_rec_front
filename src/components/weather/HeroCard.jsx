@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { Info } from '@phosphor-icons/react'
 import { ScoreRing } from '../risk/ScoreRing.jsx'
 import { AtmosphericBg } from '../effects/AtmosphericBg.jsx'
 
@@ -52,6 +54,7 @@ function formatExactTime(captured_at) {
 }
 
 export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
+  const [sourcesOpen, setSourcesOpen] = useState(false)
   if (!weather || !risk) return null
 
   const rainLevel = weather.rain_level || 'none'
@@ -66,6 +69,11 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
   const stationDist = weather.station_distance_m
   const exactTime   = formatExactTime(weather.captured_at)
   const stale       = weather.is_stale === true
+
+  // Detalhe das fontes pra explicar divergência com Google/site APAC oficial
+  const rainStation  = weather.rain_station
+  const meteoStation = weather.meteo_station
+  const hasMultipleSources = rainStation && meteoStation && rainStation.id !== meteoStation.id
 
   return (
     <div className="hero-card" key={`${bairro}-hero`}>
@@ -119,14 +127,59 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
       )}
 
       <div className="hero-source">
-        <span>
+        <span className="hero-source-station">
           {stationName}
           {stationDist != null && <> · {(stationDist / 1000).toFixed(1)} km</>}
+          {(hasMultipleSources || rainStation || meteoStation) && (
+            <button
+              type="button"
+              className="hero-source-info-btn"
+              onClick={() => setSourcesOpen(o => !o)}
+              aria-label="Explicar fontes dos dados"
+              aria-expanded={sourcesOpen}
+            >
+              <Info size={11} weight="bold" />
+            </button>
+          )}
         </span>
         <span className={stale ? 'is-stale' : ''}>
           {exactTime ? `atualizado ${exactTime}` : 'agora'}
         </span>
       </div>
+
+      {sourcesOpen && (
+        <div className="hero-source-detail" role="region" aria-label="Detalhes das fontes">
+          <p className="hero-source-detail-title">De onde vem cada número</p>
+          <ul className="hero-source-detail-list">
+            {rainStation && (
+              <li>
+                <strong>Chuva:</strong> {prettyStation(rainStation.name)}
+                {rainStation.distance_m != null && (
+                  <span className="hero-source-detail-dist">
+                    {' '}· {(rainStation.distance_m / 1000).toFixed(1)} km · CEMADEN
+                  </span>
+                )}
+              </li>
+            )}
+            {meteoStation && (
+              <li>
+                <strong>Temperatura, umidade, vento:</strong> {prettyStation(meteoStation.name)}
+                {meteoStation.distance_m != null && (
+                  <span className="hero-source-detail-dist">
+                    {' '}· {(meteoStation.distance_m / 1000).toFixed(1)} km · APAC
+                  </span>
+                )}
+              </li>
+            )}
+          </ul>
+          <p className="hero-source-detail-note">
+            Cada estação física mede só algumas variáveis. Pegamos a mais
+            próxima do bairro selecionado. Por isso pode divergir do Google
+            (que usa modelo global suavizado) ou do site oficial APAC (que
+            cita a sede em Santo Amaro).
+          </p>
+        </div>
+      )}
     </div>
   )
 }
