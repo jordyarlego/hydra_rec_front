@@ -34,18 +34,16 @@ function makeReportIcon(report) {
   const cat = CATEGORY_BY_ID[report.type] || CATEGORY_BY_ID.outro
   const color = SEV_COLOR[report.severity] || '#888'
   const pendingClass = report.pending_offline ? ' is-pending' : ''
-  // PIN gota com PNG da categoria DENTRO (substitui a bola branca):
-  // SVG só desenha a gota + borda colorida. PNG da categoria fica
-  // numa <img> HTML absoluta no espaço onde antes ficava a bolinha branca.
+  // PIN gota com PNG da categoria DENTRO. Usa background-image no span
+  // (mais resiliente que <img> filha quando o HTML vem via innerHTML).
+  const iconUrl = String(cat.icon || '').replace(/"/g, '%22')
   const html = `
     <span class="hr-pin${pendingClass}">
       <svg viewBox="0 0 36 44" width="36" height="44" xmlns="http://www.w3.org/2000/svg">
         <path d="M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z"
               fill="${color}" stroke="rgba(0,0,0,.45)" stroke-width="1.2"/>
       </svg>
-      <span class="hr-pin-iconbg">
-        <img class="hr-pin-icon" src="${cat.icon}" alt="" />
-      </span>
+      <span class="hr-pin-iconbg" style="background-image:url(&quot;${iconUrl}&quot;)"></span>
     </span>
   `
   return L.divIcon({
