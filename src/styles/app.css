@@ -6891,3 +6891,25 @@ a:hover { color: #f5b347; }
   color: var(--risk-alto);
 }
 
+
+/* ── Pin com L.icon (data-URL SVG) — nada de divIcon ───── */
+.hr-pin-img {
+  /* Leaflet aplica position/transform sozinho — NÃO sobrescrever */
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.hr-pin-img:hover {
+  filter: brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,.4));
+}
+
+
+/* ── KILL legacy: divIcon pin não é mais usado ────────── */
+/* Anula tudo que estava forçando size em .hr-report-pin-*       */
+.hr-report-pin-wrap,
+.hr-report-pin,
+.hr-report-pin svg,
+.hr-report-pin-inner,
+.hr-report-pin-inner img {
+  all: unset;
+}
+

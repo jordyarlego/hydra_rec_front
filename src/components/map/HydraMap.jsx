@@ -25,29 +25,45 @@ function makeCriticoIcon() {
   })
 }
 
-/** Pin de report com ícone da categoria + cor da severidade. */
+/** Pin de report com ícone da categoria + cor da severidade.
+ *  Implementação NOVA: usa L.icon com data-URL SVG. Resolve dois bugs:
+ *  (a) Pin "flutuando" ao dar zoom — divIcon estava perdendo anchor
+ *      por causa de CSS overrides. L.icon respeita o anchor nativo
+ *      do Leaflet sem precisar de !important nenhum.
+ *  (b) Imagem da categoria não aparecia — Vite-resolved URL nem sempre
+ *      carrega dentro de innerHTML. Aqui o ícone vai embutido no SVG
+ *      como <image href=...> que o browser baixa nativamente.
+ */
 function makeReportIcon(report) {
   const cat = CATEGORY_BY_ID[report.type] || CATEGORY_BY_ID.outro
   const color = SEV_COLOR[report.severity] || '#888'
   const pending = report.pending_offline
-  // SVG pin com PNG da categoria dentro do círculo branco
-  const html = `
-    <span class="hr-report-pin ${pending ? 'is-pending' : ''}" style="--pin-color:${color}" aria-hidden="true">
-      <svg viewBox="0 0 36 44" width="36" height="44">
-        <path d="M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z"
-              fill="${color}" stroke="rgba(0,0,0,.35)" stroke-width="1"/>
-      </svg>
-      <span class="hr-report-pin-inner">
-        <img src="${cat.icon}" alt="" />
-      </span>
-    </span>
-  `
-  return L.divIcon({
-    className: 'hr-report-pin-wrap',
-    html,
+  const opacity = pending ? 0.55 : 1
+
+  // SVG completo em data URI. width/height definem o tamanho RASTERIZADO.
+  // <image> carrega o PNG da categoria (cat.icon resolvido pelo Vite).
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 36 44" width="36" height="44">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2" />
+    </filter>
+  </defs>
+  <path d="M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z"
+        fill="${color}" stroke="rgba(0,0,0,.45)" stroke-width="1.2"
+        opacity="${opacity}"/>
+  <circle cx="18" cy="17" r="11" fill="#ffffff" opacity="${opacity}"/>
+  <image href="${cat.icon}" x="6" y="5" width="24" height="24" opacity="${opacity}"
+         preserveAspectRatio="xMidYMid meet"/>
+</svg>`
+  const url = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg)
+  return L.icon({
+    iconUrl: url,
     iconSize: [36, 44],
-    iconAnchor: [18, 44],   // ponta inferior na coordenada
+    iconAnchor: [18, 44],
     popupAnchor: [0, -38],
+    className: 'hr-pin-img',   // pode ter classe pra estilizar transition
   })
 }
 
