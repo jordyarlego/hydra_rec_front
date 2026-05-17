@@ -31,4 +31,6 @@ export const api = {
   weatherAt: (lat, lon) => request(`/api/weather?lat=${lat}&lon=${lon}`),
   reportAssist: (lat, lon) => request('/api/ai/report-assist', { method: 'POST', body: JSON.stringify({ lat, lon }) }),
   reverseGeocode: (lat, lon) => request(`/api/reverse-geocode?lat=${lat}&lon=${lon}`),
+  getOfficialNearby: (lat, lon, { radius = 500, days = 30, limit = 10 } = {}) =>
+    request(`/api/official/nearby?lat=${lat}&lon=${lon}&radius=${radius}&days=${days}&limit=${limit}`),
 }

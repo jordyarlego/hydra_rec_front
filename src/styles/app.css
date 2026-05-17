@@ -6974,3 +6974,153 @@ a:hover { color: #f5b347; }
 .hr-pin-waze.sev-grave    { border-color: #f87171 !important; box-shadow: 0 3px 14px rgba(248,113,113,.55) !important; }
 .hr-pin-waze.is-pending   { opacity: .6; border-style: dashed !important; }
 
+.leaflet-marker-icon.hr-user-avatar-marker {
+  width: 36px !important;
+  height: 36px !important;
+  box-sizing: border-box !important;
+  object-fit: contain !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.92) !important;
+  border: 2px solid #6db8ff !important;
+  padding: 2px !important;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,.36)) drop-shadow(0 0 8px rgba(59,130,246,.28));
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── OfficialNearbyCard · F8 HUD usuário ───────────────────────────── */
+.official-nearby-card {
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  border-left: 3px solid #6db8ff;
+}
+body.light .official-nearby-card,
+.sidebar-wrap.light .official-nearby-card {
+  background: rgba(15,42,80,.04);
+  border-color: rgba(15,42,80,.08);
+  border-left-color: #4a8fdb;
+}
+.official-nearby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.official-nearby-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: rgba(255,255,255,.92);
+}
+body.light .official-nearby-title,
+.sidebar-wrap.light .official-nearby-title { color: rgba(15,42,80,.92); }
+.official-nearby-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: rgba(255,255,255,.55);
+}
+body.light .official-nearby-count,
+.sidebar-wrap.light .official-nearby-count { color: rgba(15,42,80,.55); }
+
+.official-nearby-list {
+  list-style: none;
+  margin: 8px 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.official-nearby-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.025);
+}
+body.light .official-nearby-item,
+.sidebar-wrap.light .official-nearby-item { background: rgba(15,42,80,.03); }
+.official-nearby-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.official-nearby-cat {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.88);
+}
+body.light .official-nearby-cat,
+.sidebar-wrap.light .official-nearby-cat { color: rgba(15,42,80,.88); }
+.official-nearby-addr {
+  font-size: 11px;
+  color: rgba(255,255,255,.55);
+  line-height: 1.3;
+}
+body.light .official-nearby-addr,
+.sidebar-wrap.light .official-nearby-addr { color: rgba(15,42,80,.55); }
+.official-nearby-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .04em;
+}
+.official-nearby-status {
+  padding: 1px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.official-nearby-status.status-open   { background: rgba(251,146,60,.18);  color: #fb923c; }
+.official-nearby-status.status-doing  { background: rgba(109,184,255,.18); color: #6db8ff; }
+.official-nearby-status.status-done   { background: rgba(58,214,130,.18);  color: #3ad682; }
+.official-nearby-status.status-cancel { background: rgba(255,255,255,.08); color: rgba(255,255,255,.45); }
+.official-nearby-time,
+.official-nearby-dist { color: rgba(255,255,255,.4); }
+body.light .official-nearby-time,
+body.light .official-nearby-dist,
+.sidebar-wrap.light .official-nearby-time,
+.sidebar-wrap.light .official-nearby-dist { color: rgba(15,42,80,.45); }
+.official-nearby-dist { margin-left: auto; }
+
+.official-nearby-more {
+  font-size: 10px;
+  color: rgba(255,255,255,.4);
+  text-align: center;
+  font-style: italic;
+  padding: 2px 0;
+}
+body.light .official-nearby-more,
+.sidebar-wrap.light .official-nearby-more { color: rgba(15,42,80,.45); }
+
+.official-nearby-foot {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .04em;
+  color: rgba(255,255,255,.3);
+  text-align: right;
+}
+body.light .official-nearby-foot,
+.sidebar-wrap.light .official-nearby-foot { color: rgba(15,42,80,.35); }

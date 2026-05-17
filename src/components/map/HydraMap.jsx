@@ -6,6 +6,7 @@ import { PONTOS_CRITICOS } from '../../data/pontos_criticos.js'
 import { getRiskColor } from '../../lib/riskColors.js'
 import { findBairroFeature, loadBairrosGeojson } from '../../lib/bairroGeo.js'
 import { CATEGORY_BY_ID } from '../../data/report_categories.js'
+import userAvatarMarker from '../../assets/user-avatar-marker-map.png'
 
 const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 const CARTO_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
@@ -22,6 +23,16 @@ function makeCriticoIcon() {
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -14],
+  })
+}
+
+function makeUserIcon() {
+  return L.icon({
+    iconUrl: userAvatarMarker,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -22],
+    className: 'hr-user-avatar-marker',
   })
 }
 
@@ -220,13 +231,9 @@ export function HydraMap({
     if (!mapRef.current) return
     layersRef.current.gps?.remove()
     if (!gpsPos) return
-    layersRef.current.gps = L.circleMarker(gpsPos, {
-      radius: 8,
-      color: '#3b82f6',
-      weight: 2,
-      fillColor: '#93c5fd',
-      fillOpacity: 0.9,
-    }).bindTooltip('Você está aqui').addTo(mapRef.current)
+    layersRef.current.gps = L.marker(gpsPos, { icon: makeUserIcon(), zIndexOffset: 900 })
+      .bindTooltip('Você está aqui')
+      .addTo(mapRef.current)
   }, [gpsPos])
 
   // ── Report markers (PIN com ícone PNG da categoria) ──────────────────────

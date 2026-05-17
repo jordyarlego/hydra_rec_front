@@ -8,6 +8,7 @@ import { HeroCard } from '../weather/HeroCard.jsx'
 import { WeatherOutlook } from '../weather/WeatherOutlook.jsx'
 import { NearbyReportsList } from '../reports/NearbyReportsList.jsx'
 import { ApacBanner } from '../risk/ApacBanner.jsx'
+import { OfficialNearbyCard } from '../risk/OfficialNearbyCard.jsx'
 import { ScoreExplain } from '../risk/ScoreExplain.jsx'
 import { soundMgr } from '../../lib/soundManager.js'
 import { SpeakerHigh, SpeakerSlash, Sun, Moon, X } from '@phosphor-icons/react'
@@ -129,6 +130,11 @@ export function Sidebar({
         />
 
         {apacBoletim && <ApacBanner boletim={apacBoletim} light={light} />}
+
+        <OfficialNearbyCard
+          lat={data.location?.latitude}
+          lon={data.location?.longitude}
+        />
 
         <Hairline />
 
