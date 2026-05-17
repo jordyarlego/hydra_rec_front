@@ -6602,251 +6602,6 @@ a:hover { color: #f5b347; }
 }
 
 
-/* ── FIX: pins de report (divIcon com PNG da categoria) ── */
-.hr-report-pin-wrap {
-  background: none !important;
-  border: none !important;
-}
-.hr-report-pin {
-  position: relative;
-  display: block;
-  width: 36px;
-  height: 44px;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,.5));
-}
-.hr-report-pin svg { display: block; }
-.hr-report-pin-inner {
-  position: absolute;
-  top: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.hr-report-pin-inner img {
-  width: 20px;
-  height: 20px;
-  object-fit: contain;
-  pointer-events: none;
-}
-.hr-report-pin.is-pending { opacity: .55; }
-
-/* ── FIX: bola esticada — neutraliza animação herdada em Leaflet ── */
-.leaflet-pane,
-.leaflet-marker-pane,
-.leaflet-marker-icon,
-.leaflet-overlay-pane,
-.leaflet-overlay-pane svg,
-.leaflet-overlay-pane circle,
-.leaflet-overlay-pane path,
-.leaflet-popup,
-.leaflet-popup-content,
-.leaflet-popup-content-wrapper,
-.leaflet-tooltip {
-  animation: none !important;
-}
-/* Leaflet popup mantém um pouco de fade-in só pra abrir suave */
-.leaflet-popup {
-  animation: hr-fade-in .18s ease-out !important;
-}
-
-/* Bairro shape (polygon do bairro) NUNCA escala */
-.map-bairro-shape, .leaflet-interactive {
-  transition: fill-opacity var(--dur-2), stroke-opacity var(--dur-2) !important;
-}
-.leaflet-interactive { transform: none !important; }
-
-
-/* ── FIX: Kanban mobile (1 coluna empilhada) ─────────── */
-@media (max-width: 900px) {
-  .kanban-board,
-  .kanban-board-3col {
-    grid-template-columns: 1fr !important;
-    gap: var(--space-3);
-  }
-  .kanban-column {
-    min-height: 220px;
-  }
-  .kanban-col-body {
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-  .kanban-section .admin-section-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
-  .kanban-section .admin-section-head p {
-    font-size: var(--text-xs);
-    line-height: 1.5;
-  }
-}
-
-@media (max-width: 720px) {
-  .admin-shell-mobile .kanban-board-3col,
-  .admin-shell-mobile .kanban-board {
-    grid-template-columns: 1fr !important;
-  }
-  .admin-shell-mobile .kanban-col-body { max-height: 50vh; }
-}
-
-
-/* ── ODH: 2 botões de importação ─────────────────────── */
-.odh-buttons {
-  display: flex; flex-direction: column; gap: 8px;
-  flex-shrink: 0;
-}
-@media (min-width: 720px) {
-  .odh-buttons { flex-direction: row; }
-}
-
-
-/* ── FIX: pins tamanho fixo independente do zoom ────── */
-.hr-report-pin-wrap,
-.leaflet-marker-icon.hr-report-pin-wrap {
-  width: 36px !important;
-  height: 44px !important;
-  margin: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-  pointer-events: auto !important;
-}
-.hr-report-pin {
-  position: relative !important;
-  display: block !important;
-  width: 36px !important;
-  height: 44px !important;
-  transform: none !important;
-}
-.hr-report-pin svg {
-  width: 36px !important;
-  height: 44px !important;
-  display: block !important;
-}
-.hr-report-pin-inner {
-  position: absolute !important;
-  top: 5px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 26px !important;
-  height: 26px !important;
-  border-radius: 50% !important;
-  background: #fff !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-}
-.hr-report-pin-inner img {
-  width: 20px !important;
-  height: 20px !important;
-  max-width: none !important;
-  max-height: none !important;
-  object-fit: contain !important;
-  pointer-events: none !important;
-  display: block !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   FIX FINAL: pins do mapa — tamanho/posição imutáveis em qualquer
-   zoom, em qualquer viewport (mobile/desktop). E impede que SVG
-   "estique" e trave a UI cobrindo a tela inteira.
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Pin wrapper (a div que Leaflet posiciona) — caixa fixa 36×44 */
-.leaflet-marker-icon.hr-report-pin-wrap {
-  width: 36px !important;
-  height: 44px !important;
-  margin: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  /* Leaflet aplica translate3d via inline transform — preservamos */
-  /* Mas garante que o conteúdo NUNCA vaza */
-  overflow: visible !important;
-  pointer-events: auto !important;
-  contain: layout style !important;
-  isolation: isolate !important;
-}
-
-/* span interno */
-.hr-report-pin {
-  position: relative !important;
-  display: block !important;
-  width: 36px !important;
-  height: 44px !important;
-  max-width: 36px !important;
-  max-height: 44px !important;
-  transform: none !important;
-  animation: none !important;
-}
-
-/* SVG do pin — tamanho rigorosamente fixo */
-.hr-report-pin > svg {
-  width: 36px !important;
-  height: 44px !important;
-  max-width: 36px !important;
-  max-height: 44px !important;
-  display: block !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  transform: none !important;
-  animation: none !important;
-}
-
-/* Círculo branco interno */
-.hr-report-pin-inner {
-  position: absolute !important;
-  top: 5px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 26px !important;
-  height: 26px !important;
-  max-width: 26px !important;
-  max-height: 26px !important;
-  border-radius: 50% !important;
-  background: #fff !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-}
-
-.hr-report-pin-inner > img {
-  width: 20px !important;
-  height: 20px !important;
-  max-width: 20px !important;
-  max-height: 20px !important;
-  object-fit: contain !important;
-  display: block !important;
-  pointer-events: none !important;
-}
-
-.hr-report-pin.is-pending { opacity: .55; }
-
-/* Bloqueia QUALQUER regra global que possa esticar SVG dentro de marker */
-.leaflet-marker-pane svg,
-.leaflet-overlay-pane svg {
-  max-width: none !important;
-  max-height: none !important;
-}
-.leaflet-marker-pane .hr-report-pin > svg {
-  width: 36px !important;
-  height: 44px !important;
-  max-width: 36px !important;
-  max-height: 44px !important;
-}
-
-/* Popup do leaflet — z-index abaixo dos modais (z=80) pra nunca travar UI */
-.leaflet-popup-pane { z-index: 700 !important; }
-
 /* ═══════════════════════════════════════════════════════════════
    Toast/feedback bonito quando user clica longe — substitui o
    floating-form-error seco
@@ -6912,4 +6667,29 @@ a:hover { color: #f5b347; }
 .hr-report-pin-inner img {
   all: unset;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LEAFLET PINS — minimal. NÃO mexer no transform/position do
+   Leaflet (ele usa transform pra posicionar marker no zoom/pan).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Animação no popup ok, no marker NÃO */
+.leaflet-popup { animation: hr-fade-in .18s ease-out !important; }
+.leaflet-marker-icon, .leaflet-marker-pane, .leaflet-marker-shadow {
+  animation: none;
+  transition: none;
+}
+
+/* Pin renderizado por L.icon (data-URL SVG) — só hover suave */
+.hr-pin-img {
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.hr-pin-img:hover {
+  filter: brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,.4));
+}
+
+/* popup atrás do modal de report (z=80) */
+.leaflet-popup-pane { z-index: 700 !important; }
 
