@@ -1,62 +1,80 @@
-import { useState } from 'react'
 import { HydraMap } from '../map/HydraMap.jsx'
-import { LiveClock } from '../common/LiveClock.jsx'
-import { soundMgr } from '../../lib/soundManager.js'
+import { Plus, Minus, Stack, Crosshair, MagnifyingGlass } from '@phosphor-icons/react'
+import { useRef } from 'react'
 
 /* ════════════════════════════════════════════════════
-   MapStage — wrapper de chrome do mapa Leaflet
-   Adiciona: live clock + Extended FAB de reportar.
-   O Extended FAB tem ícone de megafone + label "Reportar"
-   + badge "+", muito mais intuitivo que um botão "+" só.
+   MapStage v3 — FAB stack BOTTOM-RIGHT.
+
+   MUDANÇA CRÍTICA: resolve a queixa do usuário sobre o menu
+   sobreposto. Antes os controles do Leaflet (top-left) e o
+   botão de reportar (top-left) colidiam. Agora:
+     • Leaflet com zoomControl: false
+     • Stack à direita: zoom cluster + util cluster + FAB primário
    ════════════════════════════════════════════════════ */
 
-export function MapStage({ bairro, risk, reports = [], loading, error, darkMode, onCreateReport, onMapClick, onReportClick, mobile }) {
+export function MapStage({
+  bairro,
+  risk,
+  reports,
+  loading,
+  error,
+  darkMode,
+  bairroFilter,        // ⬅ novo prop pra filtrar pins
+  onCreateReport,
+  onMapClick,
+  onReportClick,
+  mobile,
+}) {
+  // Refs / handlers expostos pelo HydraMap pra controlar zoom/centralizar
+  const mapRef = useRef(null)
+  const setMapRef = (m) => { mapRef.current = m }
+
+  const zoomIn  = () => mapRef.current?.zoomIn()
+  const zoomOut = () => mapRef.current?.zoomOut()
+  const centerOnMe = () => mapRef.current?.centerOnUser?.()
+  const toggleLayers = () => mapRef.current?.toggleHotspots?.()
+
   return (
-    <div className="map-stage">
+    <div className="map-host map-stage">
       <HydraMap
         bairro={bairro}
         risk={risk}
         reports={reports}
+        loading={loading}
+        error={error}
         darkMode={darkMode}
+        bairroFilter={bairroFilter}
         onMapClick={onMapClick}
         onReportClick={onReportClick}
+        onMapReady={setMapRef}
       />
 
-      {/* Top-right: live clock */}
-      <div className="map-overlay-tr">
-        <div className="map-clock-panel">
-          <LiveClock compact={mobile} />
+      {/* Top bar — search button discreto + bairro pill (mobile usa hamburger separado) */}
+      {!mobile && (
+        <div className="map-top-bar">
+          <button type="button" className="icon-btn" style={{ width: 40, height: 40 }} aria-label="Buscar bairro">
+            <MagnifyingGlass size={16} weight="bold" />
+          </button>
         </div>
-      </div>
-
-      {/* Bottom-right: Report action */}
-      <button
-        type="button"
-        className="map-fab-extended"
-        aria-label="Reportar ocorrência"
-        title="Reportar ocorrência"
-        onClick={() => { soundMgr.playClick(); onCreateReport && onCreateReport() }}
-      >
-        <span aria-hidden="true" className="map-fab-accent" />
-        <svg
-          width="17" height="17"
-          viewBox="0 0 24 24"
-          fill="none" stroke="currentColor"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z" />
-          <circle cx="12" cy="11" r="2.4" />
-        </svg>
-        <span className="map-fab-copy">
-          <span>Reportar</span>
-          <small>ocorrência</small>
-        </span>
-      </button>
-
-      {loading && (
-        <div className="map-loading-overlay" role="status" aria-live="polite" aria-busy="true">Carregando {bairro}...</div>
       )}
+
+      {/* FAB stack — bottom right */}
+      <div className="fab-stack">
+        {!mobile && (
+          <div className="fab-cluster" role="group" aria-label="Zoom">
+            <button type="button" onClick={zoomIn} aria-label="Aproximar"><Plus size={16} weight="bold" /></button>
+            <button type="button" onClick={zoomOut} aria-label="Afastar"><Minus size={16} weight="bold" /></button>
+          </div>
+        )}
+        <div className="fab-cluster" role="group" aria-label="Camadas e localização">
+          <button type="button" onClick={toggleLayers} aria-label="Camadas"><Stack size={16} weight="bold" /></button>
+          <button type="button" onClick={centerOnMe} aria-label="Centralizar em mim"><Crosshair size={16} weight="bold" /></button>
+        </div>
+        <button type="button" className="fab fab-primary" onClick={onCreateReport} aria-label="Reportar ocorrência">
+          <Plus size={18} weight="bold" />
+          Reportar
+        </button>
+      </div>
     </div>
   )
 }

@@ -1,43 +1,263 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   HydraRec v3 — Design Tokens (refined)
+   Mantém a alma do v2 (atmosférico, semáforo de risco) mas com:
+     • Pretos mais profundos (mais "Apple Weather de madrugada")
+     • Surfaces em tons de azul-noite (não cinza neutro)
+     • Sistema de glassmorphism com blur + borda interna
+     • Hierarquia de texto mais clara (5 níveis vs 3)
+     • Accent dourado um pouco mais quente
+   ═══════════════════════════════════════════════════════════════════════ */
+
 :root {
-  /* Tipografia */
-  --font-main: 'Outfit', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* ─────────── Type ─────────── */
+  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-body:    'Outfit', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
-  /* Escala de tamanho */
-  --text-xs:   0.6875rem;
-  --text-sm:   0.8125rem;
-  --text-base: 0.9375rem;
-  --text-lg:   1.125rem;
-  --text-xl:   1.5rem;
-  --text-2xl:  2rem;
+  --text-2xs:  10px;
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --text-lg:   17px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  32px;
+  --text-4xl:  44px;
+  --text-5xl:  64px;
 
-  /* Espaçamento */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
+  /* ─────────── Spacing ─────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+  --space-10: 72px;
 
-  /* Bordas */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  /* ─────────── Radii ─────────── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
   --radius-full: 9999px;
 
-  /* Transições */
-  --transition-fast: 120ms ease;
-  --transition-base: 220ms ease;
+  /* ─────────── Motion ─────────── */
+  --ease-out:  cubic-bezier(.22, 1, .36, 1);
+  --ease-in:   cubic-bezier(.6, 0, .8, .2);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 
-  /* Risco — cores semânticas (invariantes de tema) */
-  --risk-seguro:  #22c55e;
-  --risk-atencao: #eab308;
-  --risk-moderado:#f97316;
-  --risk-alto:    #ef4444;
-  --risk-severo:  #a855f7;
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 360ms;
+  --dur-4: 540ms;
+  --dur-5: 800ms;
 
-  /* Confiança */
-  --confidence-alta:  #22c55e;
-  --confidence-media: #eab308;
-  --confidence-baixa: #ef4444;
+  /* ─────────── Dark theme (default) ─────────── */
+  /* Background gradient stops (used on app shell) */
+  --bg-0: #06080d;
+  --bg-1: #0a0d14;
+  --bg-2: #0e1320;
+  --bg-3: #131a2b;
+
+  /* Surfaces — opaque cards */
+  --surface-1: #11151f;
+  --surface-2: #18202e;
+  --surface-3: #222b3c;
+  --surface-elevated: #1c2436;
+
+  /* Glass — translucent layers (use with backdrop-filter: blur) */
+  --glass-1: rgba(255, 255, 255, 0.04);
+  --glass-2: rgba(255, 255, 255, 0.07);
+  --glass-3: rgba(255, 255, 255, 0.10);
+  --glass-stroke: rgba(255, 255, 255, 0.08);
+  --glass-stroke-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text-1: #f5f7fb;            /* primary (headings) */
+  --text-2: rgba(245, 247, 251, 0.78); /* body */
+  --text-3: rgba(245, 247, 251, 0.55); /* muted */
+  --text-4: rgba(245, 247, 251, 0.35); /* hint */
+  --text-5: rgba(245, 247, 251, 0.18); /* disabled */
+
+  /* Brand */
+  --brand-amber:   #f0a23b;     /* dourado: chuva/atenção/CTA cidadão */
+  --brand-amber-2: #f7b860;
+  --brand-amber-soft: rgba(240, 162, 59, 0.14);
+  --brand-blue:    #6db8ff;     /* azul: info, IA */
+  --brand-blue-2:  #93caff;
+  --brand-blue-soft: rgba(109, 184, 255, 0.12);
+  --brand-water:   #4ec3e0;     /* água/clima */
+
+  /* Risk semaphore (intencionalmente independente do tema) */
+  --risk-seguro:   #3ad682;
+  --risk-atencao:  #f3c33a;
+  --risk-moderado: #fb923c;
+  --risk-alto:     #f87171;
+  --risk-severo:   #c084fc;
+
+  /* AI verdict tones */
+  --ai-suspeito:     #f87171;
+  --ai-inconclusivo: #f3c33a;
+  --ai-coerente:     #6db8ff;
+  --ai-alta:         #3ad682;
+
+  /* Priority */
+  --prio-urgente: #f87171;
+  --prio-alta:    #fb923c;
+  --prio-media:   #f3c33a;
+  --prio-baixa:   #6db8ff;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 6px rgba(0,0,0,.25);
+  --shadow-md: 0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg: 0 20px 56px rgba(0,0,0,.5);
+  --shadow-glow-amber: 0 0 0 1px var(--brand-amber-soft), 0 12px 40px rgba(240,162,59,.25);
+  --shadow-inset: inset 0 1px 0 rgba(255,255,255,.06);
+
+  /* Layout */
+  --sidebar-w: 380px;
+  --admin-sidebar-w: 240px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+
+  /* Compatibility aliases used by legacy components still present in repo. */
+  --font-main: var(--font-body);
+  --transition-fast: var(--dur-1) ease;
+  --transition-base: var(--dur-2) ease;
+}
+
+/* Light theme overrides */
+.light, [data-theme="light"] {
+  --bg-0: #f5f6f9;
+  --bg-1: #eef1f6;
+  --bg-2: #e6eaf2;
+  --bg-3: #dde2ec;
+
+  --surface-1: #ffffff;
+  --surface-2: #f7f8fb;
+  --surface-3: #eef0f5;
+  --surface-elevated: #ffffff;
+
+  --glass-1: rgba(255, 255, 255, 0.55);
+  --glass-2: rgba(255, 255, 255, 0.70);
+  --glass-3: rgba(255, 255, 255, 0.82);
+  --glass-stroke: rgba(13, 14, 17, 0.06);
+  --glass-stroke-strong: rgba(13, 14, 17, 0.12);
+
+  --text-1: #0d111c;
+  --text-2: rgba(13, 17, 28, 0.78);
+  --text-3: rgba(13, 17, 28, 0.58);
+  --text-4: rgba(13, 17, 28, 0.38);
+  --text-5: rgba(13, 17, 28, 0.18);
+
+  --brand-amber:   #c97820;
+  --brand-amber-2: #e09030;
+  --brand-amber-soft: rgba(201, 120, 32, 0.10);
+  --brand-blue:    #2872d8;
+  --brand-blue-2:  #4c95ee;
+  --brand-blue-soft: rgba(40, 114, 216, 0.08);
+
+  --shadow-sm: 0 2px 6px rgba(13,17,28,.08);
+  --shadow-md: 0 8px 24px rgba(13,17,28,.10);
+  --shadow-lg: 0 20px 56px rgba(13,17,28,.18);
+  --shadow-glow-amber: 0 0 0 1px var(--brand-amber-soft), 0 12px 40px rgba(201,120,32,.18);
+  --shadow-inset: inset 0 1px 0 rgba(255,255,255,1);
+}
+
+/* ─────────── Base reset ─────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text-1);
+  background: var(--bg-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; display: block; }
+
+/* Scrollbars */
+.scroll-y, .scrollable {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-5) transparent;
+}
+.scroll-y::-webkit-scrollbar, .scrollable::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-y::-webkit-scrollbar-thumb, .scrollable::-webkit-scrollbar-thumb { background: var(--text-5); border-radius: 3px; }
+.scroll-y::-webkit-scrollbar-thumb:hover, .scrollable::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+:focus-visible { outline: 2px solid var(--brand-amber); outline-offset: 2px; border-radius: 4px; }
+
+/* ─────────── Global keyframes ─────────── */
+@keyframes hr-fade-in   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hr-fade-up   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes hr-scale-in  { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes hr-pop       { 0% { transform: scale(.92); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
+@keyframes hr-spin      { to { transform: rotate(360deg); } }
+@keyframes hr-shimmer   { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes hr-pin-drop  {
+  0%   { transform: translateY(-220px) scale(.6); opacity: 0; }
+  60%  { transform: translateY(8px) scale(1.08); opacity: 1; }
+  80%  { transform: translateY(-3px) scale(.98); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes hr-ring-sweep {
+  from { stroke-dashoffset: var(--ring-circ); }
+}
+@keyframes hr-glow-pulse {
+  0%, 100% { opacity: .4;  transform: scale(1); }
+  50%      { opacity: .85; transform: scale(1.06); }
+}
+@keyframes hr-rain {
+  0%   { transform: translateY(-20px); opacity: 0; }
+  10%  { opacity: .85; }
+  100% { transform: translateY(110vh); opacity: 0; }
+}
+@keyframes hr-drop-form {
+  0%   { transform: translateY(-30px) scale(.6); opacity: 0; border-radius: 50%; }
+  40%  { transform: translateY(0) scale(1) translateY(0); opacity: 1; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; }
+  80%  { transform: scale(1, .82); border-radius: 50%; }
+  100% { transform: scale(1); border-radius: 50%; }
+}
+@keyframes hr-skeleton {
+  0%   { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+
+/* ─────────── Reusable atoms ─────────── */
+.glass {
+  background: var(--glass-2);
+  border: 1px solid var(--glass-stroke);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--shadow-inset), var(--shadow-sm);
+}
+.glass-strong {
+  background: var(--glass-3);
+  border: 1px solid var(--glass-stroke-strong);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: var(--shadow-inset), var(--shadow-md);
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--glass-1) 0%,
+    var(--glass-2) 50%,
+    var(--glass-1) 100%
+  );
+  background-size: 300px 100%;
+  animation: hr-skeleton 1.4s linear infinite;
+  border-radius: var(--radius-sm);
 }

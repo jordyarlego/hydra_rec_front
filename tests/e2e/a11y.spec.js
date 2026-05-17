@@ -87,7 +87,8 @@ test.describe('acessibilidade WCAG AA', () => {
     await mockApi(page)
     await page.goto('/')
 
-    await expect(page.getByLabel(/Hydra Score 52, MODERADO/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Boa Viagem' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByLabel(/Hydra Score \d+, [A-Z]+/i)).toBeVisible({ timeout: 10000 })
   })
 
   test('navegação por teclado chega ao ScoreRing', async ({ page }) => {

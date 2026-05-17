@@ -1,8 +1,16 @@
 import { soundMgr } from '../../lib/soundManager.js'
 
 /* ════════════════════════════════════════════════════
-   MobileNav — bottom-nav que aparece só no breakpoint mobile
-   Alterna entre "Painel" (sidebar drawer) e "Mapa"
+   MobileNav v3 — FIEL ao componente original do projeto.
+
+   NÃO foi reestilizado como "liquid glass pill" — o user pediu
+   pra manter o visual atual (barra inferior simples com 2 botões).
+
+   Apenas 2 abas:
+   • Painel — abre sidebar drawer
+   • Mapa   — fecha drawer, volta pro mapa
+
+   SEMPRE VISÍVEL (z-index 70, acima do .modal-overlay).
    ════════════════════════════════════════════════════ */
 
 export function MobileNav({ view, onChange }) {

@@ -3,16 +3,29 @@ import { soundMgr } from '../../lib/soundManager.js'
 import { useFocusTrap } from '../../hooks/useFocusTrap.js'
 import { api } from '../../lib/api.js'
 import { CATEGORIES, CATEGORY_BY_ID } from '../../data/report_categories.js'
-import { EmojiCategoryPicker } from './EmojiCategoryPicker.jsx'
+import { CategoryGrid } from './CategoryGrid.jsx'
 import { PhotoCapture } from './PhotoCapture.jsx'
-import { SuccessOverlay } from '../common/SuccessOverlay.jsx'
-import { MapPin, PaperPlaneTilt, X, ChatCircleText } from '@phosphor-icons/react'
+import { useToast } from '../common/Toast.jsx'
+import { MapPin, PaperPlaneTilt, X, Check, Robot, CloudRain } from '@phosphor-icons/react'
+
+/* ════════════════════════════════════════════════════
+   QuickReportSheet v3 — single-screen, GRID 3×3, IA inline.
+
+   Diferenças do v2:
+   • UMA pergunta principal — sem "assistantQuestion" duplicada
+   • Categorias em GRID 3×3 fixo (NÃO scroll horizontal)
+   • Quando a IA escolhe uma categoria, a tile pulsa com glow azul
+     (anima 1.2s e dissipa, via classe `.ai-picked` + chave de
+     reset `aiPulseKey`)
+   • Severidade em pílulas
+   • Submit: spinner → check → fecha + toast no parent
+   ════════════════════════════════════════════════════ */
 
 const MAX_DESCRIPTION = 140
 const SEVERITIES = [
-  ['leve', 'Leve'],
+  ['leve',     'Leve'],
   ['moderado', 'Moderado'],
-  ['grave', 'Grave'],
+  ['grave',    'Grave'],
 ]
 const SEV_BY_CATEGORY = { leve: 'leve', moderado: 'moderado', alto: 'grave', severo: 'grave' }
 
@@ -22,35 +35,15 @@ function inferCategory(weather) {
   return null
 }
 
-function rainLabel(rain) {
-  if (rain == null) return null
-  if (rain >= 30)   return 'Chuva muito forte'
-  if (rain >= 10)   return 'Chuva forte'
-  if (rain >= 2.5)  return 'Chuva moderada'
-  if (rain >= 0.2)  return 'Chuva fraca'
-  return 'Sem chuva'
-}
-
-function freshnessLabel(captured_at) {
-  if (!captured_at) return null
-  const ts = new Date(captured_at)
-  const diffMs = Date.now() - ts.getTime()
-  if (Number.isNaN(diffMs)) return null
-  const min = Math.floor(diffMs / 60000)
-  // Acima de 1h a leitura é antiga demais pra ser útil como contexto do report
-  if (min >= 60) return null
-  if (min < 1)   return 'agora há pouco'
-  return `há ${min} min`
-}
-
 function buildWeatherHint(weather) {
   if (!weather) return null
-  const rain  = weather.rain_1h_mm
-  const fresh = freshnessLabel(weather.captured_at)
+  const rain = weather.rain_1h_mm
   if (rain == null) return null
-  const label = rainLabel(rain)
-  const main  = rain >= 0.2 ? `${label} (${Number(rain).toFixed(1)} mm/h)` : label
-  return fresh ? `${main} · ${fresh}` : main
+  if (rain >= 30) return `Chuva muito forte — ${Number(rain).toFixed(1)} mm/h pela APAC`
+  if (rain >= 10) return `Chuva forte — ${Number(rain).toFixed(1)} mm/h pela APAC`
+  if (rain >= 2.5) return `Chuva moderada — ${Number(rain).toFixed(1)} mm/h pela APAC`
+  if (rain >= 0.2) return `Chuva leve — ${Number(rain).toFixed(1)} mm/h pela APAC`
+  return null
 }
 
 export function QuickReportSheet({
@@ -64,57 +57,60 @@ export function QuickReportSheet({
   reportLon,
 }) {
   const [tipo, setTipo] = useState('alagamento')
-  const [severidade, setSeveridade] = useState('moderado')
-  // Marca que o user mexeu manualmente — IA não sobrescreve depois disso
   const [tipoLocked, setTipoLocked] = useState(false)
+  const [severidade, setSeveridade] = useState('moderado')
   const [severidadeLocked, setSeveridadeLocked] = useState(false)
   const [descricao, setDescricao] = useState('')
   const [photo, setPhoto] = useState(null)
   const [weatherHint, setWeatherHint] = useState(null)
-  const [assistantQuestion, setAssistantQuestion] = useState(null)
+  const [aiSuggestion, setAiSuggestion] = useState(null) // {category, source: 'photo'|'rain'}
+  const [aiPulseKey, setAiPulseKey] = useState(0)        // re-mount glow ring on each AI pick
   const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
   const [error, setError] = useState(null)
-  const [showSuccess, setShowSuccess] = useState(false)
   const trapRef = useFocusTrap(open, onClose)
+  const toast = useToast()
 
   const canSubmit = userLat != null && userLon != null && reportLat != null && reportLon != null
   const locationLabel = useMemo(() => (
     reportLat != null && reportLon != null
-      ? `${reportLat.toFixed(4)}, ${reportLon.toFixed(4)}`
+      ? `${bairro || ''} · ${reportLat.toFixed(4)}, ${reportLon.toFixed(4)}`
       : 'Escolha um ponto no mapa'
-  ), [reportLat, reportLon])
+  ), [reportLat, reportLon, bairro])
 
+  // Reset when modal opens
   useEffect(() => {
     if (!open) return
-    setDescricao('')
-    setPhoto(null)
-    setError(null)
-    setWeatherHint(null)
-    setAssistantQuestion(null)
-    setTipo('alagamento')
-    setSeveridade('moderado')
-    setTipoLocked(false)
-    setSeveridadeLocked(false)
+    setDescricao(''); setPhoto(null); setError(null)
+    setWeatherHint(null); setAiSuggestion(null); setAiPulseKey(0)
+    setTipo('alagamento'); setSeveridade('moderado')
+    setTipoLocked(false); setSeveridadeLocked(false)
+    setSubmitting(false); setDone(false)
 
     let cancelled = false
     if (reportLat != null && reportLon != null) {
       api.reportAssist(reportLat, reportLon)
         .then(data => {
           if (cancelled) return
-          setAssistantQuestion(data.question || null)
-          if (data.suggested_category && CATEGORY_BY_ID[data.suggested_category]) {
+          // Sugestão server-side baseada em chuva
+          if (data.suggested_category && CATEGORY_BY_ID[data.suggested_category] && !tipoLocked) {
             const cat = CATEGORY_BY_ID[data.suggested_category]
-            if (!tipoLocked)        setTipo(cat.id)
-            if (!severidadeLocked)  setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+            setTipo(cat.id)
+            if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+            setAiSuggestion({ category: cat.id, source: 'rain' })
+            setAiPulseKey(k => k + 1)
+          } else {
+            const w = data.weather || data
+            const suggested = inferCategory(w)
+            if (suggested && !tipoLocked) {
+              const cat = CATEGORY_BY_ID[suggested]
+              setTipo(cat.id)
+              if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+              setAiSuggestion({ category: cat.id, source: 'rain' })
+              setAiPulseKey(k => k + 1)
+            }
           }
-          const weather = data.weather || data
-          const suggested = inferCategory(weather)
-          if (suggested) {
-            const cat = CATEGORY_BY_ID[suggested]
-            if (!tipoLocked)        setTipo(cat.id)
-            if (!severidadeLocked)  setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
-          }
-          setWeatherHint(buildWeatherHint(weather))
+          setWeatherHint(buildWeatherHint(data.weather || data))
         })
         .catch(() => {})
     }
@@ -124,30 +120,36 @@ export function QuickReportSheet({
 
   if (!open) return null
 
-  function handleCategory(cat) {
+  // User clica manual → desliga locked AI pulse pra não re-pular
+  const handleCategoryClick = (cat) => {
     soundMgr.playClick()
     setTipo(cat.id)
     setTipoLocked(true)
-    // Severidade sugerida pela categoria — só aplica se user ainda não mexeu
-    if (!severidadeLocked) {
-      setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
-    }
+    setAiSuggestion(null)
+    if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
   }
 
-  function handleSeverityChange(value) {
-    setSeveridade(value)
+  const handleSeverity = (v) => {
+    setSeveridade(v)
     setSeveridadeLocked(true)
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!canSubmit) {
-      setError('Ative a localização e escolha um ponto no mapa.')
-      return
+  // Foto + AI: dispara animação na tile escolhida
+  const handlePhotoAi = (typeId) => {
+    const cat = CATEGORY_BY_ID[typeId]
+    if (!cat) return
+    setAiSuggestion({ category: cat.id, source: 'photo' })
+    if (!tipoLocked) {
+      setTipo(cat.id)
+      setAiPulseKey(k => k + 1)
     }
-    setSubmitting(true)
-    setError(null)
-    soundMgr.playClick()
+    if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!canSubmit) { setError('Ative a localização e escolha um ponto no mapa.'); return }
+    setSubmitting(true); setError(null); soundMgr.playClick()
     try {
       const form = new FormData()
       form.append('tipo', tipo)
@@ -160,8 +162,9 @@ export function QuickReportSheet({
       if (descricao.trim()) form.append('descricao', descricao.trim())
       if (photo) form.append('photo', photo)
       await onSubmit(form, { lat: reportLat, lon: reportLon })
-      // Mostra overlay de sucesso e fecha modal só depois da animação
-      setShowSuccess(true)
+      setDone(true)
+      toast.push({ kind: 'success', text: 'Report enviado! Pin caindo no mapa…' })
+      setTimeout(() => onClose?.(), 900)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -169,144 +172,137 @@ export function QuickReportSheet({
     }
   }
 
-  function onOverlayClick(e) {
-    if (e.target === e.currentTarget) onClose?.()
-  }
-
-  const selectedCategory = CATEGORY_BY_ID[tipo] || CATEGORY_BY_ID.outro
-
   return (
-    <div className="modal-overlay quick-sheet-overlay" onClick={onOverlayClick}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose?.()}>
       <form
         ref={trapRef}
-        className="modal-panel quick-sheet"
+        className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-label="Reportar ocorrência"
         onSubmit={handleSubmit}
       >
-        <header className="modal-header quick-sheet-header">
-          <div className="quick-sheet-grabber" aria-hidden="true" />
-          <div className="quick-sheet-title-wrap">
-            <div>
-              <h2 id="quick-report-title" className="modal-title">Novo report</h2>
-              <div className="modal-subtitle">
-                <MapPin size={12} weight="bold" aria-hidden="true" />
-                {locationLabel}
-              </div>
+        <div className="modal-grabber" aria-hidden="true" />
+        <div className="modal-header">
+          <div>
+            <h2 className="modal-title">Novo report</h2>
+            <div className="modal-subtitle">
+              <MapPin size={11} weight="bold" aria-hidden="true" />
+              <span>{locationLabel}</span>
             </div>
-            <button type="button" className="modal-close" onClick={onClose} aria-label="Fechar">
-              <X size={17} weight="bold" aria-hidden="true" />
-            </button>
           </div>
-        </header>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Fechar">
+            <X size={15} weight="bold" />
+          </button>
+        </div>
 
-        <div className="quick-sheet-scroll">
-          {/* 1. O QUE VOCÊ ESTÁ VENDO — destaque máximo */}
-          <section className="quick-section quick-section-prompt">
-            <label className="form-field quick-description-field quick-description-hero">
-              <span className="form-label form-label-hero">
-                <ChatCircleText size={16} weight="bold" aria-hidden="true" />
-                O que você está vendo?
-              </span>
-              <input
-                type="text"
-                value={descricao}
-                onChange={e => setDescricao(e.target.value.slice(0, MAX_DESCRIPTION))}
-                placeholder="Descreva em uma frase. Ex.: água cobrindo a faixa da direita."
-                maxLength={MAX_DESCRIPTION}
-                className="quick-description-input-hero"
-                autoFocus
-              />
-              <small className="quick-description-hint">{descricao.length}/{MAX_DESCRIPTION}</small>
+        <div className="modal-body scroll-y">
+          {/* 1. DESCRIÇÃO — pergunta única */}
+          <div className="form-field">
+            <label htmlFor="report-desc" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-1)' }}>
+              O que você está vendo?
             </label>
-            {assistantQuestion && <div className="quick-assistant-question">{assistantQuestion}</div>}
-          </section>
-
-          {/* 2. FOTO — IA já analisa enquanto preenche */}
-          <section className="quick-section">
-            <span className="form-label">Foto (opcional, mas ajuda muito)</span>
-            <PhotoCapture
-              file={photo}
-              onChange={setPhoto}
-              onAiSuggest={(typeId) => {
-                const cat = CATEGORY_BY_ID[typeId]
-                if (!cat) return
-                // Respeita override manual do usuário
-                if (!tipoLocked)       setTipo(cat.id)
-                if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
-              }}
+            <input
+              id="report-desc"
+              autoFocus
+              type="text"
+              value={descricao}
+              onChange={e => setDescricao(e.target.value.slice(0, MAX_DESCRIPTION))}
+              placeholder="Em uma frase. Ex: rua alagada na faixa da direita"
+              maxLength={MAX_DESCRIPTION}
+              style={{ height: 52, fontSize: 15 }}
             />
-          </section>
-
-          {/* 3. CATEGORIA */}
-          <section className="quick-section quick-section-hero">
-            <div className="quick-category-summary" aria-live="polite">
-              <span className="quick-category-icon" aria-hidden="true">
-                <img src={selectedCategory.icon} alt="" draggable="false" />
-              </span>
-              <div>
-                <span className="quick-category-kicker">Tipo selecionado</span>
-                <strong>{selectedCategory.label}</strong>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-4)' }}>
+              <span>{descricao.length}/{MAX_DESCRIPTION}</span>
+              <span>Quanto mais claro, melhor a IA classifica</span>
             </div>
+          </div>
 
-            <EmojiCategoryPicker
+          {/* 2. FOTO + IA inline */}
+          <div className="form-field">
+            <label>Foto (opcional, mas ajuda muito a IA)</label>
+            <PhotoCapture file={photo} onChange={setPhoto} onAiSuggest={handlePhotoAi} />
+          </div>
+
+          {/* 3. CATEGORIA — grid 3×3 com badge "Sugerido pela IA" */}
+          <div className="form-field">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+              <label style={{ margin: 0 }}>Categoria</label>
+              {aiSuggestion && (
+                <span className="ai-pill" aria-live="polite">
+                  <span className="dot" />
+                  <Robot size={12} weight="bold" />
+                  Sugerido pela IA
+                </span>
+              )}
+            </div>
+            <CategoryGrid
               value={tipo}
-              onChange={handleCategory}
+              onChange={handleCategoryClick}
               categories={CATEGORIES}
+              aiPickedId={aiSuggestion?.category}
+              aiPulseKey={aiPulseKey}
             />
-          </section>
+          </div>
 
           {/* 4. SEVERIDADE */}
-          <section className="quick-section">
-            <span className="form-label">O quão grave parece?</span>
-            <div className="severity-picker">
+          <div className="form-field">
+            <label>O quão grave parece?</label>
+            <div className="severity-row">
               {SEVERITIES.map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
-                  className={`severity-btn severity-${value}${severidade === value ? ' active' : ''}`}
-                  onClick={(e) => { try { e.currentTarget.blur() } catch {} ; handleSeverityChange(value) }}
+                  className={`severity-pill ${severidade === value ? 'active' : ''}`}
+                  data-sev={value}
+                  onClick={() => handleSeverity(value)}
                   aria-pressed={severidade === value}
                 >
-                  <span className="severity-dot" />
+                  <span className="dot" />
                   {label}
                 </button>
               ))}
             </div>
-          </section>
-
-          <div className="quick-context-row">
-            {weatherHint && (
-              <div className="quick-weather-hint" title="Dados em tempo real APAC/CEMADEN">
-                <span className="quick-weather-hint-badge">APAC</span>
-                <span>{weatherHint}</span>
-              </div>
-            )}
           </div>
+
+          {/* 5. CONTEXTO APAC */}
+          {weatherHint && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '12px 14px',
+              background: 'var(--brand-blue-soft)',
+              border: '1px solid rgba(109,184,255,.18)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 12,
+            }}>
+              <CloudRain size={18} weight="bold" style={{ color: 'var(--brand-blue)' }} />
+              <span style={{ color: 'var(--text-2)' }}>{weatherHint}</span>
+            </div>
+          )}
 
           {!canSubmit && <p className="form-error" role="alert">Localização do navegador necessária para enviar.</p>}
           {error && <p className="form-error" role="alert">{error}</p>}
         </div>
 
-        <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="btn-primary" disabled={submitting || !canSubmit}>
-            <PaperPlaneTilt size={17} weight="bold" aria-hidden="true" />
-            {submitting ? 'Enviando...' : 'Enviar'}
+        <div className="modal-footer">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="btn btn-primary" disabled={submitting || done || !canSubmit} style={{ flex: 2 }}>
+            {done ? (
+              <><Check size={16} weight="bold" /> Enviado</>
+            ) : submitting ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'hr-spin .8s linear infinite' }}>
+                  <circle cx="12" cy="12" r="9" strokeOpacity=".25" />
+                  <path d="M21 12a9 9 0 0 1-9 9" />
+                </svg>
+                Enviando…
+              </>
+            ) : (
+              <><PaperPlaneTilt size={15} weight="bold" /> Enviar report</>
+            )}
           </button>
         </div>
       </form>
-
-      {showSuccess && (
-        <SuccessOverlay
-          title="Report enviado!"
-          subtitle="A IA já está analisando — você verá o pin no mapa em instantes."
-          duration={1800}
-          onDone={() => { setShowSuccess(false); onClose?.() }}
-        />
-      )}
     </div>
   )
 }

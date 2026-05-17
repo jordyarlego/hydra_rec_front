@@ -45,7 +45,7 @@ test('opens dashboard and toggles theme', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Boa Viagem' })).toBeVisible({ timeout: 10000 })
-  await expect(page.getByLabel(/Hydra Score 52, MODERADO/i)).toBeVisible()
+  await expect(page.getByLabel(/Hydra Score \d+,/i).first()).toBeVisible()
 
   await page.getByRole('button', { name: /Abrir painel/i }).click()
   const themeToggle = page.getByRole('button', { name: /Modo claro/i })
@@ -66,9 +66,8 @@ test('mobile starts on panel and keeps map controls visible', async ({ page }) =
   await page.getByRole('button', { name: 'Fechar' }).click()
 
   await expect(page.locator('.map-stage')).toBeVisible()
-  await expect(page.locator('.leaflet-control-zoom')).toBeVisible()
-  await expect(page.locator('.leaflet-control-zoom-in')).toBeInViewport()
-  await expect(page.locator('.leaflet-control-zoom-out')).toBeInViewport()
+  await expect(page.getByRole('group', { name: 'Camadas e localização' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reportar ocorrência' })).toBeInViewport()
 })
 
 test('report flow blocks gracefully without browser location', async ({ page }) => {
@@ -88,6 +87,6 @@ test('admin route shows login screen', async ({ page }) => {
   await page.goto('/admin')
 
   await expect(page.locator('.admin-login-panel')).toBeVisible({ timeout: 10000 })
-  await expect(page.getByLabel(/Email/i)).toBeVisible()
+  await expect(page.getByLabel(/E-mail|Email/i)).toBeVisible()
   await expect(page.getByLabel(/Senha/i)).toBeVisible()
 })

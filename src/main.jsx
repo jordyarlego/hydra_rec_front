@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { ToastProvider } from './components/common/Toast.jsx'
 import './styles/globals.css'
 
 const AdminPage = lazy(() => import('./pages/AdminPage.jsx').then(mod => ({ default: mod.AdminPage })))
@@ -47,7 +48,9 @@ const Root = window.location.pathname.startsWith('/admin') ? AdminPage : App
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Suspense fallback={null}>
-      <Root />
+      <ToastProvider>
+        <Root />
+      </ToastProvider>
     </Suspense>
   </React.StrictMode>
 )

@@ -1,32 +1,44 @@
 import { useExplain } from '../../hooks/useExplain.js'
-import { ScoreExplain } from '../risk/ScoreExplain.jsx'
+import { useApac } from '../../hooks/useApac.js'
 import { BairroSearch } from '../common/BairroSearch.jsx'
 import { IconBtn } from '../common/IconBtn.jsx'
+import { PushBell } from '../common/PushBell.jsx'
 import { HydraLogo } from '../effects/HydraLogo.jsx'
 import { HeroCard } from '../weather/HeroCard.jsx'
 import { WeatherOutlook } from '../weather/WeatherOutlook.jsx'
 import { NearbyReportsList } from '../reports/NearbyReportsList.jsx'
 import { ApacBanner } from '../risk/ApacBanner.jsx'
+import { ScoreExplain } from '../risk/ScoreExplain.jsx'
 import { soundMgr } from '../../lib/soundManager.js'
-import { PushBell } from '../common/PushBell.jsx'
-import { useApac } from '../../hooks/useApac.js'
+import { SpeakerHigh, SpeakerSlash, Sun, Moon, X } from '@phosphor-icons/react'
 
 /* ════════════════════════════════════════════════════
-   Sidebar — painel lateral esquerdo (drawer no mobile)
-   Contém TODO o conteúdo do dashboard: header, busca,
-   hero, alert, chips, forecast horário, tabs (IA, Trajeto,
-   Fontes), reports próximos, footer.
+   Sidebar v3 — FIEL ao layout atual do user.
+   Mudanças do v2 são MÍNIMAS:
+   • Atom updates (botões usam .btn .btn-* novo, IconBtn novo)
+   • Hairlines visuais sutis (não muda hierarquia)
+   • Animação de entrada da hero card preservada
+   • HeroCard mantém "CHOVENDO X mm/h" (queixa do user no v3 inicial
+     foi mal interpretada — user quer manter, só não "avulsa")
+
+   NÃO mexer em:
+   • Ordem das seções: Search → Hero → APAC → Como está o clima
+     (WeatherOutlook) → Ocorrências próximas → Footer
+   • Conteúdo: WeatherOutlook continua sendo "Está caindo chuva
+     fraca em N estações" + "VER SENSORES" + "Chuva moderada a
+     caminho" (lista de estações)
    ════════════════════════════════════════════════════ */
 
-function Hairline() {
-  return <div className="sidebar-hairline" />
-}
+function Hairline() { return <div className="hairline" /> }
 
-function SectionLabel({ children, right }) {
+function Section({ label, right, children }) {
   return (
-    <div className="sidebar-section-label">
-      <span>{children}</span>
-      {right && <span className="sidebar-section-right">{right}</span>}
+    <div>
+      <div className="section-label">
+        <span>{label}</span>
+        {right && <span className="section-label-right">{right}</span>}
+      </div>
+      {children}
     </div>
   )
 }
@@ -38,113 +50,64 @@ export function Sidebar({
   light, soundOn, onSoundToggle, onThemeToggle,
   mobile, onClose,
 }) {
-  const explain  = useExplain()
+  const explain = useExplain()
   const { boletim: apacBoletim } = useApac()
 
-  /* ── Header (sticky) ── */
   const header = (
     <div className="sidebar-header">
-      <HydraLogo size={32} showText={true} light={light} />
+      <HydraLogo size={32} showText light={light} />
       <div className="sidebar-header-actions">
-          <PushBell />
-        <IconBtn
-          label={soundOn ? 'Silenciar' : 'Ativar som'}
-          onClick={onSoundToggle}
-          active={!soundOn}
-          danger={!soundOn}
-        >
-          {soundOn ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            </svg>
-          ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <line x1="23" y1="9" x2="17" y2="15" />
-              <line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-          )}
+        <PushBell />
+        <IconBtn label={soundOn ? 'Silenciar' : 'Ativar som'} onClick={onSoundToggle} active={!soundOn}>
+          {soundOn ? <SpeakerHigh size={14} weight="bold" /> : <SpeakerSlash size={14} weight="bold" style={{ color: 'var(--risk-alto)' }} />}
         </IconBtn>
-        <IconBtn
-          label={light ? 'Modo escuro' : 'Modo claro'}
-          onClick={onThemeToggle}
-        >
-          {light ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-              <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-          )}
+        <IconBtn label={light ? 'Modo escuro' : 'Modo claro'} onClick={onThemeToggle}>
+          {light ? <Moon size={14} weight="bold" /> : <Sun size={14} weight="bold" />}
         </IconBtn>
         {mobile && onClose && (
-          <IconBtn label="Fechar" onClick={onClose}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </IconBtn>
+          <IconBtn label="Fechar" onClick={onClose}><X size={14} weight="bold" /></IconBtn>
         )}
       </div>
     </div>
   )
 
-  /* ── Loading state ── */
   if (loading && !data) {
     return (
       <div className="sidebar-wrap">
         {header}
-        <div className="sidebar-search-wrap">
+        <div className="sidebar-scroll">
           <BairroSearch value={bairro} onChange={onBairroChange} />
-        </div>
-        <div className="sidebar-status" role="status" aria-live="polite" aria-busy="true">
-          <div className="sidebar-status-logo"><HydraLogo size={48} showText={false} light={light} /></div>
-          <div className="sidebar-status-msg">Carregando {bairro}...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
+            <HydraLogo size={48} showText={false} light={light} />
+            <p style={{ marginTop: 12 }}>Carregando {bairro}…</p>
+          </div>
         </div>
       </div>
     )
   }
 
-  /* ── Error state ── */
   if (error && !data) {
     return (
       <div className="sidebar-wrap">
         {header}
-        <div className="sidebar-search-wrap">
+        <div className="sidebar-scroll">
           <BairroSearch value={bairro} onChange={onBairroChange} />
-        </div>
-        <div className="sidebar-status sidebar-status-error">
-          <div className="sidebar-status-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <p style={{ color: 'var(--risk-alto)', fontWeight: 600 }}>Erro ao carregar dados</p>
+            <small style={{ color: 'var(--text-3)' }}>{error}</small>
+            <button type="button" onClick={onRetry} className="btn btn-primary" style={{ marginTop: 12 }}>
+              Tentar novamente
+            </button>
           </div>
-          <div>
-            <div className="sidebar-status-title">Erro ao carregar dados</div>
-            <div className="sidebar-status-detail">{error}</div>
-          </div>
-          <button type="button" onClick={onRetry} className="btn-primary">Tentar novamente</button>
         </div>
       </div>
     )
   }
 
-  /* ── Normal state ── */
   return (
     <div className="sidebar-wrap">
       {header}
+
       <ScoreExplain
         open={explain.open}
         loading={explain.loading}
@@ -153,46 +116,44 @@ export function Sidebar({
         onClose={explain.close}
         light={light}
       />
+
       <div className="sidebar-scroll scroll-y">
-        <div className="sidebar-content">
+        <BairroSearch value={bairro} onChange={onBairroChange} />
 
-          <BairroSearch value={bairro} onChange={onBairroChange} />
+        <HeroCard
+          bairro={bairro}
+          weather={data.weather}
+          risk={data.risk}
+          light={light}
+          onExplain={() => { soundMgr.playClick(); explain.explain(bairro) }}
+        />
 
-          <HeroCard
-            bairro={bairro}
-            weather={data.weather}
-            risk={data.risk}
+        {apacBoletim && <ApacBanner boletim={apacBoletim} light={light} />}
+
+        <Hairline />
+
+        {/* "Como está o clima na região" — WeatherOutlook do v2.
+            Conteúdo: "Está caindo chuva fraca em N estações por perto"
+            + botão "+ VER SENSORES (N)" + "Chuva moderada a caminho"
+            com lista de 3 estações por proximidade. */}
+        <Section label="Como está o clima na região">
+          <WeatherOutlook
+            lat={data.location?.latitude}
+            lon={data.location?.longitude}
             light={light}
-            onExplain={() => { soundMgr.playClick(); explain.explain(bairro) }}
           />
+        </Section>
 
-          {apacBoletim && <ApacBanner boletim={apacBoletim} light={light} />}
+        <Hairline />
 
-          <Hairline />
+        <Section label="Ocorrências próximas" right={`${reports?.length || 0} reports · raio 2 km`}>
+          <NearbyReportsList reports={reports} onConfirm={onConfirmReport} />
+        </Section>
+      </div>
 
-          <div>
-            <SectionLabel>Como está o clima na região</SectionLabel>
-            <WeatherOutlook
-              lat={data.location?.latitude}
-              lon={data.location?.longitude}
-              light={light}
-            />
-          </div>
-
-          <Hairline />
-
-          <div>
-            <SectionLabel right={`${reports?.length || 0} reports · raio 2 km`}>
-              Ocorrências próximas
-            </SectionLabel>
-            <NearbyReportsList reports={reports} onConfirm={onConfirmReport} />
-          </div>
-
-          <div className="sidebar-footer">
-            <div className="sidebar-footer-title">HYDRAREC</div>
-            <div className="sidebar-footer-sub">Plataforma cívica · Recife</div>
-          </div>
-        </div>
+      <div className="sidebar-footer">
+        <strong>HYDRAREC</strong>
+        <small>Plataforma cívica · Recife</small>
       </div>
     </div>
   )

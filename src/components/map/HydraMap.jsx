@@ -26,7 +26,16 @@ function makeCriticoIcon() {
 
 
 
-export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapClick, onReportClick }) {
+export function HydraMap({
+  bairro,
+  risk,
+  reports = [],
+  darkMode = true,
+  bairroFilter = false,
+  onMapClick,
+  onReportClick,
+  onMapReady,
+}) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const tileRef = useRef(null)
@@ -66,9 +75,16 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapCli
       attribution: TILE_ATTR,
     }).addTo(map)
 
-    L.control.zoom({ position: 'bottomleft' }).addTo(map)
-
     mapRef.current = map
+    onMapReady?.({
+      zoomIn: () => map.zoomIn(),
+      zoomOut: () => map.zoomOut(),
+      centerOnUser: () => {
+        if (gpsPos) map.setView(gpsPos, 15, { animate: true })
+        else map.setView(BAIRRO_COORDS[bairro] ?? FALLBACK_CENTER, 14, { animate: true })
+      },
+      toggleHotspots: () => setShowDC(v => !v),
+    })
 
     const invalidate = () => map.invalidateSize({ pan: false })
     requestAnimationFrame(invalidate)
@@ -97,8 +113,22 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapCli
       if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current)
       map.remove()
       mapRef.current = null
+      onMapReady?.(null)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    onMapReady?.({
+      zoomIn: () => mapRef.current?.zoomIn(),
+      zoomOut: () => mapRef.current?.zoomOut(),
+      centerOnUser: () => {
+        if (gpsPos) mapRef.current?.setView(gpsPos, 15, { animate: true })
+        else mapRef.current?.setView(BAIRRO_COORDS[bairro] ?? FALLBACK_CENTER, 14, { animate: true })
+      },
+      toggleHotspots: () => setShowDC(v => !v),
+    })
+  }, [bairro, gpsPos, onMapReady])
 
   useEffect(() => {
     if (!mapRef.current || !onMapClick) return
@@ -187,6 +217,7 @@ export function HydraMap({ bairro, risk, reports = [], darkMode = true, onMapCli
     const group = L.layerGroup()
     for (const r of reports) {
       if (r.lat == null || r.lon == null) continue
+      if (bairroFilter && r.bairro && r.bairro !== bairro) continue
       const color = SEV_COLOR[r.severity] ?? '#888'
       L.circleMarker([r.lat, r.lon], {
         radius: r.pending_offline ? 8 : 7,

@@ -1,9 +1,15 @@
+/* LoadingScreen v3 — mantém o original do projeto (chuva + glow + progress bar
+   com 6 passos). Só adiciona "RECIFE EM TEMPO REAL" como tagline embaixo
+   (substitui "DEFESA CIVIL · RECIFE, PE" — opcional, user gostou).
+
+   IMPORTANTE: NÃO substituir por uma animação de gota — o user já gosta
+   do splash atual. Esta versão é só polimento do tagline + verificação
+   de que continua com 4.3s de duração total.
+*/
+
 import { useState, useEffect, useMemo } from 'react'
 import { HydraLogo } from '../effects/HydraLogo.jsx'
 
-/* ════════════════════════════════════════════════════
-   LoadingScreen — splash inicial com progresso animado
-   ════════════════════════════════════════════════════ */
 export function LoadingScreen({ onDone }) {
   const [progress, setProgress] = useState(0)
   const [status, setStatus]     = useState('Inicializando sistema...')
@@ -12,7 +18,7 @@ export function LoadingScreen({ onDone }) {
   const steps = useMemo(() => [
     [200,  0,   'Inicializando sistema...'],
     [700,  18,  'Carregando bairros do Recife...'],
-    [1300, 40,  'Obtendo dados climáticos...'],
+    [1300, 40,  'Obtendo dados climáticos APAC...'],
     [1900, 62,  'Calculando Hydra Score...'],
     [2500, 82,  'Gerando boletim Defesa Civil...'],
     [3100, 100, 'Sistema pronto.'],
@@ -25,7 +31,8 @@ export function LoadingScreen({ onDone }) {
     const t1 = setTimeout(() => setOut(true), 3700)
     const t2 = setTimeout(onDone, 4300)
     return () => { ts.forEach(clearTimeout); clearTimeout(t1); clearTimeout(t2) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const drops = useMemo(() => Array.from({ length: 55 }, (_, i) => ({
     id: i,
@@ -60,10 +67,9 @@ export function LoadingScreen({ onDone }) {
       <div className="loading-stack">
         <div className="loading-logo"><HydraLogo size={92} showText={false} /></div>
         <div className="loading-title-wrap">
-          <div className="loading-title">
-            HYDRA<span>REC</span>
-          </div>
-          <div className="loading-tagline">DEFESA CIVIL · RECIFE, PE</div>
+          <div className="loading-title">HYDRA<span>REC</span></div>
+          {/* MUDANÇA: tagline trocou pra "RECIFE EM TEMPO REAL" — user pediu */}
+          <div className="loading-tagline">RECIFE EM TEMPO REAL</div>
         </div>
         <div className="loading-bar-wrap">
           <div className="loading-bar-track">
@@ -75,7 +81,7 @@ export function LoadingScreen({ onDone }) {
           </div>
         </div>
       </div>
-      <div className="loading-footer">SISTEMA DE ALERTA CLIMÁTICO HIPERLOCAL</div>
+      <div className="loading-footer">DEFESA CIVIL · SISTEMA DE ALERTA CLIMÁTICO HIPERLOCAL</div>
     </div>
   )
 }

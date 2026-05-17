@@ -14,6 +14,7 @@ import { MobileNav }     from './components/layout/MobileNav.jsx'
 import { QuickReportSheet } from './components/reports/QuickReportSheet.jsx'
 import { ReportPinPopup } from './components/reports/ReportPinPopup.jsx'
 import { SchemaWarning } from './components/common/SchemaWarning.jsx'
+import { useToast } from './components/common/Toast.jsx'
 
 import './styles/app.css'
 
@@ -50,6 +51,7 @@ async function resolveBairroCoords(bairro) {
 
 export default function App() {
   const { theme, toggle: toggleTheme } = useTheme()
+  const toast = useToast()
   const isLight = theme === 'light'
 
   const [ready,        setReady]        = useState(false)
@@ -201,12 +203,16 @@ export default function App() {
 
   function handleMapClick(lat, lon) {
     if (reportGps?.lat == null || reportGps?.lon == null) {
-      setReportError('Ative a localização do navegador para reportar.')
+      const msg = 'Ative a localização do navegador para reportar.'
+      setReportError(msg)
+      toast.push({ kind: 'error', text: msg })
       setReportOpen(false)
       return
     }
     if (haversineKm(reportGps.lat, reportGps.lon, lat, lon) > 1.5) {
-      setReportError('Escolha um ponto a até 1,5 km da sua localização atual.')
+      const msg = 'Escolha um ponto a até 1,5 km da sua localização atual.'
+      setReportError(msg)
+      toast.push({ kind: 'error', text: msg })
       setReportOpen(false)
       return
     }
@@ -219,7 +225,11 @@ export default function App() {
   async function handleSubmitReport(payload, coords = {}) {
     const result = await submitReport(payload)
     if (coords.lat != null && coords.lon != null) loadNearby(coords.lat, coords.lon)
-    if (result?.offline) setReportError('Sem conexão. Report salvo e será enviado automaticamente.')
+    if (result?.offline) {
+      const msg = 'Sem conexão. Report salvo e será enviado automaticamente.'
+      setReportError(msg)
+      toast.push({ kind: 'info', text: msg })
+    }
   }
 
   async function handleReportClick(report) {
