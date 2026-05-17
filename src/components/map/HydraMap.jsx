@@ -34,16 +34,18 @@ function makeReportIcon(report) {
   const cat = CATEGORY_BY_ID[report.type] || CATEGORY_BY_ID.outro
   const color = SEV_COLOR[report.severity] || '#888'
   const pendingClass = report.pending_offline ? ' is-pending' : ''
-  // SVG inline pro path do pin (estável, não depende de carregar nada).
-  // <img> HTML pra categoria (carrega normalmente).
+  // PIN gota com PNG da categoria DENTRO (substitui a bola branca):
+  // SVG só desenha a gota + borda colorida. PNG da categoria fica
+  // numa <img> HTML absoluta no espaço onde antes ficava a bolinha branca.
   const html = `
     <span class="hr-pin${pendingClass}">
       <svg viewBox="0 0 36 44" width="36" height="44" xmlns="http://www.w3.org/2000/svg">
         <path d="M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z"
               fill="${color}" stroke="rgba(0,0,0,.45)" stroke-width="1.2"/>
-        <circle cx="18" cy="17" r="11" fill="#ffffff"/>
       </svg>
-      <img class="hr-pin-icon" src="${cat.icon}" alt="" />
+      <span class="hr-pin-iconbg">
+        <img class="hr-pin-icon" src="${cat.icon}" alt="" />
+      </span>
     </span>
   `
   return L.divIcon({

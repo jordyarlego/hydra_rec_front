@@ -6888,14 +6888,29 @@ a:hover { color: #f5b347; }
   height: 44px;
   display: block;
 }
-.hr-pin-icon {
+/* Container branco (substitui a circle do SVG) — fica EXATAMENTE
+   onde a bola branca ficava, mas com o PNG dentro */
+.hr-pin-iconbg {
   position: absolute;
   top: 6px;
   left: 50%;
   transform: translateX(-50%);
   width: 22px;
   height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.hr-pin-icon {
+  width: 18px;
+  height: 18px;
   object-fit: contain;
+  display: block;
   pointer-events: none;
 }
 .hr-pin.is-pending { opacity: .55; }
