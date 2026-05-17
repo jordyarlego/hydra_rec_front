@@ -6857,3 +6857,8 @@ a:hover { color: #f5b347; }
 .app-root.light .pin-popup-desc { background: rgba(13,17,28,.04); }
 .app-root.light .pin-popup-userphoto img { border-color: rgba(13,17,28,.08); }
 
+
+/* ── Popup SEM animação ─────────────────────────────── */
+.pin-popup-overlay { animation: none !important; }
+.pin-popup-card    { animation: none !important; }
+
