@@ -34,21 +34,39 @@ function makeReportIcon(report) {
   const cat = CATEGORY_BY_ID[report.type] || CATEGORY_BY_ID.outro
   const color = SEV_COLOR[report.severity] || '#888'
   const pendingClass = report.pending_offline ? ' is-pending' : ''
-  // PIN gota com PNG da categoria DENTRO. Usa background-image no span
-  // (mais resiliente que <img> filha quando o HTML vem via innerHTML).
-  const iconUrl = String(cat.icon || '').replace(/"/g, '%22')
-  const html = `
-    <span class="hr-pin${pendingClass}">
-      <svg viewBox="0 0 36 44" width="36" height="44" xmlns="http://www.w3.org/2000/svg">
-        <path d="M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z"
-              fill="${color}" stroke="rgba(0,0,0,.45)" stroke-width="1.2"/>
-      </svg>
-      <span class="hr-pin-iconbg" style="background-image:url(&quot;${iconUrl}&quot;)"></span>
-    </span>
-  `
+  // Construo o pin via DOM API (não string innerHTML) — garante que a
+  // <img> realmente carrega e que classes/styles aplicam sem escape.
+  const wrap = document.createElement('span')
+  wrap.className = 'hr-pin' + pendingClass
+
+  // SVG da gota colorida pela severidade
+  const svgNS = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(svgNS, 'svg')
+  svg.setAttribute('viewBox', '0 0 36 44')
+  svg.setAttribute('width', '36')
+  svg.setAttribute('height', '44')
+  const path = document.createElementNS(svgNS, 'path')
+  path.setAttribute('d', 'M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z')
+  path.setAttribute('fill', color)
+  path.setAttribute('stroke', 'rgba(0,0,0,.45)')
+  path.setAttribute('stroke-width', '1.2')
+  svg.appendChild(path)
+  wrap.appendChild(svg)
+
+  // Bolinha branca com PNG da categoria dentro
+  const iconBg = document.createElement('span')
+  iconBg.className = 'hr-pin-iconbg'
+  const img = document.createElement('img')
+  img.src = cat.icon                     // URL Vite-resolved — sempre carrega
+  img.alt = ''
+  img.className = 'hr-pin-icon'
+  img.setAttribute('aria-hidden', 'true')
+  iconBg.appendChild(img)
+  wrap.appendChild(iconBg)
+
   return L.divIcon({
     className: 'hr-pin-wrap',
-    html,
+    html: wrap,
     iconSize: [36, 44],
     iconAnchor: [18, 44],
     popupAnchor: [0, -38],
