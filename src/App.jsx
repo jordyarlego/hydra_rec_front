@@ -290,22 +290,24 @@ export default function App() {
         id="main"
         className={`app-main${isMobile && mobileView === 'sidebar' ? ' is-hidden' : ''}`}
       >
-        {/* Botão hamburger — sempre visível, abre sidebar drawer */}
-        <div className="map-mobile-topbar">
-          <button
-            type="button"
-            className="mobile-open-sidebar"
-            onClick={() => { soundMgr.playClick(); setSidebarOpen(true) }}
-            aria-label="Abrir painel"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-            {bairro}
-          </button>
-        </div>
+        {/* Botão hamburger — sempre disponível pra abrir a sidebar drawer */}
+        {!sidebarOpen && (
+          <div className="map-mobile-topbar">
+            <button
+              type="button"
+              className="mobile-open-sidebar"
+              onClick={() => { soundMgr.playClick(); setSidebarOpen(true) }}
+              aria-label="Abrir painel"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+              {bairro}
+            </button>
+          </div>
+        )}
 
         <MapStage
           bairro={bairro}

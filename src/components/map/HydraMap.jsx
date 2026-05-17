@@ -5,6 +5,7 @@ import { BAIRRO_COORDS } from '../../data/bairro_coords.js'
 import { PONTOS_CRITICOS } from '../../data/pontos_criticos.js'
 import { getRiskColor } from '../../lib/riskColors.js'
 import { findBairroFeature, loadBairrosGeojson } from '../../lib/bairroGeo.js'
+import { CATEGORY_BY_ID } from '../../data/report_categories.js'
 
 const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 const CARTO_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
@@ -21,6 +22,32 @@ function makeCriticoIcon() {
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -14],
+  })
+}
+
+/** Pin de report com ícone da categoria + cor da severidade. */
+function makeReportIcon(report) {
+  const cat = CATEGORY_BY_ID[report.type] || CATEGORY_BY_ID.outro
+  const color = SEV_COLOR[report.severity] || '#888'
+  const pending = report.pending_offline
+  // SVG pin com PNG da categoria dentro do círculo branco
+  const html = `
+    <span class="hr-report-pin ${pending ? 'is-pending' : ''}" style="--pin-color:${color}" aria-hidden="true">
+      <svg viewBox="0 0 36 44" width="36" height="44">
+        <path d="M18 2 C9 2 2 9 2 18 c0 11 16 24 16 24 s16-13 16-24 c0-9-7-16-16-16 z"
+              fill="${color}" stroke="rgba(0,0,0,.35)" stroke-width="1"/>
+      </svg>
+      <span class="hr-report-pin-inner">
+        <img src="${cat.icon}" alt="" />
+      </span>
+    </span>
+  `
+  return L.divIcon({
+    className: 'hr-report-pin-wrap',
+    html,
+    iconSize: [36, 44],
+    iconAnchor: [18, 44],   // ponta inferior na coordenada
+    popupAnchor: [0, -38],
   })
 }
 
@@ -210,7 +237,7 @@ export function HydraMap({
     }).bindTooltip('Você está aqui').addTo(mapRef.current)
   }, [gpsPos])
 
-  // ── Report markers ───────────────────────────────────────────────────────
+  // ── Report markers (PIN com ícone PNG da categoria) ──────────────────────
   useEffect(() => {
     if (!mapRef.current) return
     layersRef.current.reports?.clearLayers()
@@ -218,21 +245,7 @@ export function HydraMap({
     for (const r of reports) {
       if (r.lat == null || r.lon == null) continue
       if (bairroFilter && r.bairro && r.bairro !== bairro) continue
-      const color = SEV_COLOR[r.severity] ?? '#888'
-      L.circleMarker([r.lat, r.lon], {
-        radius: r.pending_offline ? 8 : 7,
-        color,
-        weight: r.pending_offline ? 2.2 : 1.5,
-        dashArray: r.pending_offline ? '3 4' : undefined,
-        fillColor: color,
-        fillOpacity: r.pending_offline ? 0.45 : 0.85,
-      })
-        .bindPopup(
-          `<div class="map-popup"><b>${r.type?.replace('_', ' ')}</b><br/>
-           <span class="popup-sev" style="color:${color}">${r.severity}</span><br/>
-           ${r.description ? `<span>${r.description}</span>` : ''}
-           <br/><small>${r.pending_offline ? 'Pendente de envio' : `${r.confirmed_count ?? 0} confirmações`}</small></div>`,
-        )
+      L.marker([r.lat, r.lon], { icon: makeReportIcon(r) })
         .on('click', e => {
           if (e.originalEvent) L.DomEvent.stop(e.originalEvent)
           onReportClick?.(r)

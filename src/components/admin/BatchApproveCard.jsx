@@ -16,7 +16,14 @@ export function BatchApproveCard({ reports = [], onApproved }) {
     if (busy) return
     const ids = reports.map(r => r.id).filter(Boolean)
     if (!ids.length) return
-    if (!confirm(`Aprovar ${ids.length} report(s) e gerar chamados automaticamente?`)) return
+    if (!confirm(
+      `Aprovar ${ids.length} report(s) de uma vez?\n\n` +
+      `Cada um vai virar um CHAMADO oficial (com órgão sugerido pela IA + ` +
+      `título auto-gerado), passar pra coluna "Aberto" do kanban, e aparecer na ` +
+      `aba Chamados pronto pra você encaminhar pro órgão responsável.\n\n` +
+      `Você ainda precisa "Encaminhar" cada chamado depois — esse botão só ` +
+      `pula a etapa de revisar 1 a 1 os reports que a IA já validou com alta confiança.`
+    )) return
 
     setBusy(true)
     setError(null)
@@ -41,20 +48,21 @@ export function BatchApproveCard({ reports = [], onApproved }) {
       <div className="batch-approve-head">
         <Lightning size={20} weight="fill" aria-hidden="true" />
         <div>
-          <strong>Aprovação em lote disponível</strong>
+          <strong>{reports.length} report(s) prontos pra virar chamado</strong>
           <small>
-            {reports.length} report(s) foram pré-validados pela IA (score ≥ 75%, prioridade alta, sem reincidência).
-            Cada um vira um chamado com órgão e título preenchidos automaticamente.
+            A IA já confirmou alta probabilidade (foto urbana clara + clima compatível + sem reincidência).
+            <strong> "Aprovar todos"</strong> gera {reports.length} chamado(s) de uma vez, com órgão e título preenchidos
+            — você economiza tempo de revisar 1 por 1 e parte direto pra etapa de encaminhar.
           </small>
         </div>
         <button
           type="button"
-          className="btn-primary admin-icon-button"
+          className="btn btn-primary"
           onClick={approveAll}
           disabled={busy || reports.length === 0}
         >
           <CheckCircle size={16} weight="bold" aria-hidden="true" />
-          {busy ? 'Aprovando…' : `Aprovar ${reports.length}`}
+          {busy ? 'Aprovando…' : `Aprovar ${reports.length} e gerar chamados`}
         </button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, ImageSquare, X, Sparkle } from '@phosphor-icons/react'
+import { Camera, ImageSquare, X, Sparkle, Robot } from '@phosphor-icons/react'
 import { CATEGORY_BY_ID } from '../../data/report_categories.js'
 
 export function PhotoCapture({ file, onChange, onAiSuggest }) {
@@ -10,17 +10,16 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
   const [cameraError, setCameraError] = useState(null)
   const [aiAnalysis, setAiAnalysis] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(null)
   const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file])
 
-  // Dispara análise IA com debounce 1.5s + cache por (size, mtime, name)
-  // pra não queimar tokens enquanto o usuário ainda está montando o report
+  // Dispara análise IA com debounce 1.5s + cache
   useEffect(() => {
     if (!file) {
-      setAiAnalysis(null)
+      setAiAnalysis(null); setAiError(null); setAiLoading(false)
       return
     }
 
-    // Cache key estável pelo arquivo (mesma foto = mesmo cache)
     const cacheKey = `${file.name}|${file.size}|${file.lastModified || ''}`
     const cached = sessionStorage.getItem(`hr_ai_photo:${cacheKey}`)
     if (cached) {
@@ -31,20 +30,20 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
           onAiSuggest?.(data.suggested_type)
         }
         return
-      } catch { /* ignora cache ruim */ }
+      } catch { /* ignora */ }
     }
 
     let cancelled = false
     setAiLoading(true)
     setAiAnalysis(null)
+    setAiError(null)
 
-    // Debounce: só chama a IA depois de 1.5s sem trocar foto
     const debounceTimer = setTimeout(() => {
       if (cancelled) return
       const form = new FormData()
       form.append('photo', file)
       fetch('/api/ai/describe-photo', { method: 'POST', body: form })
-        .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+        .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
         .then(data => {
           if (cancelled) return
           try { sessionStorage.setItem(`hr_ai_photo:${cacheKey}`, JSON.stringify(data)) } catch {}
@@ -53,7 +52,12 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
             onAiSuggest?.(data.suggested_type)
           }
         })
-        .catch(() => { if (!cancelled) setAiAnalysis(null) })
+        .catch(err => {
+          if (!cancelled) {
+            setAiError(err.message || 'IA indisponível')
+            setAiAnalysis(null)
+          }
+        })
         .finally(() => { if (!cancelled) setAiLoading(false) })
     }, 1500)
 
@@ -64,15 +68,13 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
   }, [file, onAiSuggest])
 
   function stopCamera() {
-    streamRef.current?.getTracks().forEach(track => track.stop())
+    streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
     setCameraOpen(false)
   }
 
   useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }
   }, [previewUrl])
 
   useEffect(() => stopCamera, [])
@@ -83,26 +85,21 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
       inputRef.current?.click()
       return
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       })
       streamRef.current = stream
       setCameraOpen(true)
-      window.setTimeout(() => {
+      setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           videoRef.current.play().catch(() => {})
         }
       }, 0)
     } catch {
-      setCameraError('Não foi possível abrir a câmera. Use o seletor de foto.')
+      setCameraError('Câmera indisponível. Usando seletor de foto.')
       inputRef.current?.click()
     }
   }
@@ -110,13 +107,10 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
   async function captureFrame() {
     const video = videoRef.current
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) return
-
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
     canvas.toBlob(blob => {
       if (!blob) return
       const photo = new File([blob], `hydrarec-report-${Date.now()}.jpg`, { type: 'image/jpeg' })
@@ -125,53 +119,106 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
     }, 'image/jpeg', 0.88)
   }
 
-  return (
-    <div className="photo-capture">
-      {cameraOpen ? (
-        <div className="camera-panel">
-          <video ref={videoRef} className="camera-preview" playsInline muted />
-          <div className="camera-actions">
-            <button type="button" className="btn-primary" onClick={captureFrame}>
-              <Camera size={17} weight="bold" aria-hidden="true" />
-              Capturar
-            </button>
-            <button type="button" className="btn-secondary" onClick={stopCamera} aria-label="Cancelar câmera">
-              <X size={17} weight="bold" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      ) : previewUrl ? (
-        <div className="photo-preview-wrap">
-          <img className="photo-preview" src={previewUrl} alt="Prévia da foto do report" />
-        </div>
-      ) : null}
-      {previewUrl && aiLoading && (
-        <div className="photo-ai-line photo-ai-line--loading">
-          <Sparkle size={12} weight="bold" aria-hidden="true" />
-          <span>Analisando a foto…</span>
-        </div>
-      )}
-      {previewUrl && !aiLoading && aiAnalysis?.ai_used && aiAnalysis.description && (
-        <div className="photo-ai-line">
-          <Sparkle size={12} weight="bold" aria-hidden="true" />
-          <span>
-            {aiAnalysis.description}
-            {aiAnalysis.suggested_type && CATEGORY_BY_ID[aiAnalysis.suggested_type] && (
-              <span className="photo-ai-suggest">
-                {' '}· sugerimos <strong>{CATEGORY_BY_ID[aiAnalysis.suggested_type].label}</strong>
-              </span>
-            )}
+  function openPicker() {
+    inputRef.current?.click()
+  }
+
+  // Mostra IA quando: tem descrição (mesmo se ai_used=false do fallback)
+  const showAiLine = previewUrl && (aiLoading || aiAnalysis?.description || aiError)
+  const aiCat = aiAnalysis?.suggested_type && CATEGORY_BY_ID[aiAnalysis.suggested_type]
+
+  // ────────── EMPTY STATE: container inteiro vira CTA ──────────
+  if (!file && !cameraOpen) {
+    return (
+      <>
+        <button
+          type="button"
+          className="photo-capture photo-capture-empty"
+          onClick={openCamera}
+        >
+          <span className="photo-empty-icon">
+            <Camera size={36} weight="bold" aria-hidden="true" />
           </span>
+          <strong>Adicionar foto</strong>
+          <small>Toque pra abrir a câmera</small>
+          <span
+            className="photo-empty-alt"
+            onClick={(e) => { e.stopPropagation(); openPicker() }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); openPicker() } }}
+          >
+            <ImageSquare size={12} weight="bold" /> ou escolher da galeria
+          </span>
+        </button>
+        {cameraError && <span className="photo-capture-error">{cameraError}</span>}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          className="photo-input"
+          onChange={e => onChange(e.target.files?.[0] || null)}
+        />
+      </>
+    )
+  }
+
+  // ────────── CAMERA OPEN ──────────
+  if (cameraOpen) {
+    return (
+      <div className="photo-capture camera-mode">
+        <video ref={videoRef} className="camera-preview" playsInline muted />
+        <div className="camera-actions">
+          <button type="button" className="btn btn-primary" onClick={captureFrame}>
+            <Camera size={16} weight="bold" /> Capturar
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={stopCamera} aria-label="Cancelar câmera">
+            <X size={16} weight="bold" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ────────── PREVIEW MODE ──────────
+  return (
+    <div className="photo-capture photo-capture-filled">
+      <img className="photo-preview" src={previewUrl} alt="Prévia da foto do report" />
+
+      {showAiLine && (
+        <div className={`photo-ai-banner ${aiLoading ? 'is-loading' : ''} ${aiError ? 'is-error' : ''}`}>
+          {aiLoading ? (
+            <>
+              <Sparkle size={13} weight="bold" className="ai-spin" />
+              <span>IA analisando a foto…</span>
+            </>
+          ) : aiError ? (
+            <>
+              <X size={13} weight="bold" />
+              <span>IA indisponível — você pode escolher a categoria manualmente</span>
+            </>
+          ) : aiAnalysis?.description ? (
+            <>
+              <Robot size={13} weight="bold" />
+              <span>
+                <strong>IA viu:</strong> {aiAnalysis.description}
+                {aiCat && <> · sugere <strong>{aiCat.label}</strong></>}
+              </span>
+            </>
+          ) : null}
         </div>
       )}
+
       <button
         type="button"
-        className="btn-secondary photo-capture-btn"
+        className="photo-retake-btn"
         onClick={openCamera}
+        aria-label="Trocar foto"
       >
-        {file ? <ImageSquare size={18} weight="bold" aria-hidden="true" /> : <Camera size={18} weight="bold" aria-hidden="true" />}
-        {file ? 'Trocar foto' : 'Tirar foto'}
+        <ImageSquare size={14} weight="bold" /> Trocar
       </button>
+
       {cameraError && <span className="photo-capture-error">{cameraError}</span>}
       <input
         ref={inputRef}

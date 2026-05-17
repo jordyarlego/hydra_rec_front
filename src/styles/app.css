@@ -6355,3 +6355,301 @@ a:hover { color: #f5b347; }
 .pin-popup-vote-btn.up.active   { background: rgba(58,214,130,.16); color: var(--risk-seguro); border-color: rgba(58,214,130,.35); }
 .pin-popup-vote-btn.down.active { background: rgba(248,113,113,.16); color: var(--risk-alto);  border-color: rgba(248,113,113,.35); }
 
+
+/* ── FIX: controles do mapa pro top-right (não bate com hamburger) ── */
+.hydra-map-controls {
+  left: auto !important;
+  right: 18px !important;
+  max-width: calc(100% - 200px) !important;
+  justify-content: flex-end;
+}
+@media (max-width: 900px) {
+  .hydra-map-controls {
+    left: 12px !important;
+    right: 12px !important;
+    top: 64px !important;
+    max-width: calc(100% - 24px) !important;
+  }
+}
+
+/* Hamburger fica acima dos controles em z-index */
+.map-mobile-topbar { z-index: 850 !important; }
+
+
+/* ── PhotoCapture V3 — empty/filled/camera ───────────── */
+.photo-capture {
+  position: relative;
+  min-height: 180px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--glass-1);
+  border: 1.5px dashed var(--glass-stroke-strong);
+  transition: all var(--dur-2);
+  display: block;
+  width: 100%;
+}
+.photo-capture-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--space-5) var(--space-4);
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  border: 1.5px dashed var(--glass-stroke-strong);
+  background: var(--glass-1);
+  width: 100%;
+}
+.photo-capture-empty:hover {
+  border-color: var(--brand-amber);
+  color: var(--brand-amber);
+  background: var(--brand-amber-soft);
+}
+.photo-capture-empty .photo-empty-icon {
+  display: grid; place-items: center;
+  width: 56px; height: 56px;
+  background: var(--glass-2);
+  border-radius: 50%;
+  margin-bottom: 6px;
+}
+.photo-capture-empty:hover .photo-empty-icon { background: rgba(240,162,59,.18); }
+.photo-capture-empty strong {
+  font-size: var(--text-base); font-weight: 600; color: var(--text-1);
+}
+.photo-capture-empty small { font-size: var(--text-xs); color: var(--text-3); }
+.photo-capture-empty .photo-empty-alt {
+  margin-top: var(--space-2);
+  font-size: var(--text-2xs);
+  letter-spacing: .04em;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  background: var(--glass-2);
+  border-radius: var(--radius-full);
+  color: var(--text-3);
+  cursor: pointer;
+}
+.photo-capture-empty .photo-empty-alt:hover {
+  color: var(--text-1); background: var(--glass-3);
+}
+
+/* Filled */
+.photo-capture-filled {
+  border: 1px solid var(--glass-stroke);
+  background: #000;
+  min-height: 220px;
+}
+.photo-capture-filled .photo-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-ai-banner {
+  position: absolute;
+  top: var(--space-3); left: var(--space-3); right: var(--space-3);
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(10,13,20,.85);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(109,184,255,.30);
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  z-index: 2;
+  animation: hr-fade-up var(--dur-2) var(--ease-out);
+}
+.photo-ai-banner > svg { flex-shrink: 0; margin-top: 1px; color: var(--brand-blue); }
+.photo-ai-banner.is-loading { border-color: rgba(255,255,255,.18); }
+.photo-ai-banner.is-loading > svg { color: var(--text-3); animation: hr-spin 1.4s linear infinite; }
+.photo-ai-banner.is-error { border-color: rgba(248,113,113,.35); }
+.photo-ai-banner.is-error > svg { color: var(--risk-alto); }
+.photo-ai-banner strong { font-weight: 700; color: white; }
+.ai-spin { animation: hr-spin 1.4s linear infinite; }
+
+.photo-retake-btn {
+  position: absolute;
+  bottom: var(--space-3); right: var(--space-3);
+  z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  background: rgba(10,13,20,.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: var(--radius-full);
+  color: white;
+  font-size: var(--text-xs); font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-1);
+}
+.photo-retake-btn:hover { background: rgba(10,13,20,.95); border-color: var(--brand-amber); color: var(--brand-amber); }
+
+.photo-capture.camera-mode {
+  background: #000;
+  min-height: 280px;
+  display: flex; flex-direction: column;
+}
+.camera-preview { flex: 1; width: 100%; object-fit: cover; background: #000; }
+.camera-actions {
+  display: flex; gap: 8px;
+  padding: var(--space-3);
+  background: rgba(0,0,0,.55);
+  justify-content: center;
+}
+
+.photo-input { display: none !important; }
+.photo-capture-error { display: block; margin-top: 6px; font-size: var(--text-xs); color: var(--risk-alto); }
+
+.app-root.light .photo-capture-empty,
+.light .photo-capture-empty { border-color: rgba(13,17,28,.18); }
+.app-root.light .photo-capture-empty:hover,
+.light .photo-capture-empty:hover { border-color: var(--brand-amber); background: rgba(201,120,32,.06); }
+.app-root.light .photo-empty-icon,
+.light .photo-empty-icon { background: rgba(13,17,28,.05); }
+
+
+/* ── FIX: Modal de report acima da MobileNav ─────────── */
+.modal-overlay {
+  z-index: 80 !important;   /* MobileNav é 70, modal precisa ficar acima */
+  position: fixed !important;
+  inset: 0 !important;
+}
+.modal-card {
+  /* No mobile, garantir que o footer não fica atrás da MobileNav */
+  padding-bottom: 0 !important;
+}
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--surface-1);
+  border-top: 1px solid var(--glass-stroke);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+}
+.app-root.light .modal-footer,
+.light .modal-footer { background: #fff; }
+@media (max-width: 720px) {
+  /* Modal full-width + sem mobile-nav atrapalhando */
+  .modal-overlay { align-items: flex-end; }
+  .modal-card {
+    max-width: 100% !important;
+    max-height: calc(100vh - 64px) !important;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+  /* Quando modal está aberto, esconde mobile-nav */
+  body:has(.modal-overlay) .mobile-nav { display: none; }
+}
+
+
+/* ── FIX: pins de report (divIcon com PNG da categoria) ── */
+.hr-report-pin-wrap {
+  background: none !important;
+  border: none !important;
+}
+.hr-report-pin {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 44px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.5));
+}
+.hr-report-pin svg { display: block; }
+.hr-report-pin-inner {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.hr-report-pin-inner img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.hr-report-pin.is-pending { opacity: .55; }
+
+/* ── FIX: bola esticada — neutraliza animação herdada em Leaflet ── */
+.leaflet-pane,
+.leaflet-marker-pane,
+.leaflet-marker-icon,
+.leaflet-overlay-pane,
+.leaflet-overlay-pane svg,
+.leaflet-overlay-pane circle,
+.leaflet-overlay-pane path,
+.leaflet-popup,
+.leaflet-popup-content,
+.leaflet-popup-content-wrapper,
+.leaflet-tooltip {
+  animation: none !important;
+}
+/* Leaflet popup mantém um pouco de fade-in só pra abrir suave */
+.leaflet-popup {
+  animation: hr-fade-in .18s ease-out !important;
+}
+
+/* Bairro shape (polygon do bairro) NUNCA escala */
+.map-bairro-shape, .leaflet-interactive {
+  transition: fill-opacity var(--dur-2), stroke-opacity var(--dur-2) !important;
+}
+.leaflet-interactive { transform: none !important; }
+
+
+/* ── FIX: Kanban mobile (1 coluna empilhada) ─────────── */
+@media (max-width: 900px) {
+  .kanban-board,
+  .kanban-board-3col {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-3);
+  }
+  .kanban-column {
+    min-height: 220px;
+  }
+  .kanban-col-body {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .kanban-section .admin-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .kanban-section .admin-section-head p {
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-shell-mobile .kanban-board-3col,
+  .admin-shell-mobile .kanban-board {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-shell-mobile .kanban-col-body { max-height: 50vh; }
+}
+
+
+/* ── ODH: 2 botões de importação ─────────────────────── */
+.odh-buttons {
+  display: flex; flex-direction: column; gap: 8px;
+  flex-shrink: 0;
+}
+@media (min-width: 720px) {
+  .odh-buttons { flex-direction: row; }
+}
+
