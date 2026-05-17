@@ -33,4 +33,9 @@ export const api = {
   reverseGeocode: (lat, lon) => request(`/api/reverse-geocode?lat=${lat}&lon=${lon}`),
   getOfficialNearby: (lat, lon, { radius = 500, days = 30, limit = 10 } = {}) =>
     request(`/api/official/nearby?lat=${lat}&lon=${lon}&radius=${radius}&days=${days}&limit=${limit}`),
+  subscribeReportPush: (reportId, endpoint) =>
+    request(`/api/reports/${reportId}/subscribe-push`, {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    }),
 }

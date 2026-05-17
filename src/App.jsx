@@ -15,8 +15,22 @@ import { QuickReportSheet } from './components/reports/QuickReportSheet.jsx'
 import { ReportPinPopup } from './components/reports/ReportPinPopup.jsx'
 import { SchemaWarning } from './components/common/SchemaWarning.jsx'
 import { useToast } from './components/common/Toast.jsx'
+import { api } from './lib/api.js'
 
 import './styles/app.css'
+
+/* Vincula esse report ao push endpoint do navegador (se já estiver inscrito)
+   pra cidadão receber notificação quando ticket vinculado mudar de estado.
+   Silencioso: falha não bloqueia o flow. */
+async function autoSubscribeReportPush(reportId) {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  const reg = await navigator.serviceWorker.getRegistration()
+  if (!reg) return
+  const sub = await reg.pushManager.getSubscription()
+  if (!sub?.endpoint) return
+  await api.subscribeReportPush(reportId, sub.endpoint)
+}
 
 const FALLBACK_COORDS = [-8.1195, -34.9008]
 const MOBILE_BREAKPOINT = 900
@@ -238,6 +252,12 @@ export default function App() {
       const msg = 'Sem conexão. Report salvo e será enviado automaticamente.'
       setReportError(msg)
       toast.push({ kind: 'info', text: msg })
+    }
+    // Auto-subscribe: se o cidadão JÁ deu permissão de push antes,
+    // vincula esse report ao endpoint pra receber notif quando o
+    // ticket vinculado mudar de estado.
+    if (result?.id && !result?.offline) {
+      autoSubscribeReportPush(result.id).catch(() => {})
     }
   }
 
