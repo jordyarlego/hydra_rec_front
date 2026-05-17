@@ -6862,3 +6862,75 @@ a:hover { color: #f5b347; }
 .pin-popup-overlay { animation: none !important; }
 .pin-popup-card    { animation: none !important; }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   PIN definitivo: divIcon com <img>. NÃO mexer no transform —
+   Leaflet usa pra posicionar no zoom/pan. Só estiliza interior.
+   ═══════════════════════════════════════════════════════════════ */
+.leaflet-marker-icon.hr-pin-wrap {
+  background: transparent;
+  border: 0;
+  /* Leaflet aplica transform/position — preservamos. Só garante size. */
+  width: 36px !important;
+  height: 44px !important;
+}
+.hr-pin {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 44px;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.35));
+}
+.hr-pin > svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 36px;
+  height: 44px;
+  display: block;
+}
+.hr-pin-icon {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.hr-pin.is-pending { opacity: .55; }
+
+/* ═══════════════════════════════════════════════════════════════
+   "Bola esticada bugada ao carregar report" = era o
+   floating-form-error 'Carregando report...' ficando fullscreen
+   quando algo no CSS herda 100vw/100vh. Vamos garantir tamanho
+   contido + sem animação esquisita.
+   ═══════════════════════════════════════════════════════════════ */
+.floating-form-error {
+  position: fixed !important;
+  top: 16px !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: min(92vw, 340px) !important;
+  height: auto !important;
+  padding: 10px 14px !important;
+  background: rgba(248,113,113,.92) !important;
+  color: white !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  z-index: 9999 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+/* Status (não erro) — azul */
+.floating-form-error[role="status"] {
+  background: rgba(109,184,255,.92) !important;
+  color: #06121e !important;
+}
+
