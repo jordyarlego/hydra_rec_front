@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { CATEGORY_BY_ID } from '../../data/report_categories.js'
 import { priorityLabel } from './adminLabels.js'
 import { ArrowClockwise, CheckCircle, ClipboardText, ArrowRight, Buildings, Warning } from '@phosphor-icons/react'
@@ -67,6 +67,8 @@ export function AdminTickets() {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
   const [resolutionNotes, setResolutionNotes] = useState({})
+  const [fieldErrors, setFieldErrors] = useState({})
+  const noteRefs = useRef({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -121,7 +123,11 @@ export function AdminTickets() {
       if (nextState === 'resolvido') {
         const note = (resolutionNotes[ticket.id] || '').trim()
         if (note.length < 8) {
-          setError('Informe o que foi feito antes de marcar como resolvido.')
+          setFieldErrors(prev => ({
+            ...prev,
+            [ticket.id]: 'Descreva em poucas palavras o que foi feito antes de resolver.',
+          }))
+          noteRefs.current[ticket.id]?.focus()
           return
         }
         // Usa endpoint /close existente que registra resolution_note + atualiza report vinculado
@@ -141,7 +147,9 @@ export function AdminTickets() {
           body: JSON.stringify({ kanban_state: 'resolvido' }),
         })
         setResolutionNotes(prev => ({ ...prev, [ticket.id]: '' }))
+        setFieldErrors(prev => ({ ...prev, [ticket.id]: null }))
         setMessage('Chamado resolvido. Report vinculado também marcado como resolvido.')
+        setSuccess({ title: 'Chamado resolvido', subtitle: 'O report saiu da triagem pública do mapa.' })
       } else {
         const res = await adminFetch(`/api/admin/tickets/${ticket.id}`, {
           method: 'PATCH',
@@ -230,12 +238,22 @@ export function AdminTickets() {
 
                       {isResolvendo && (
                         <textarea
+                          ref={el => { noteRefs.current[ticket.id] = el }}
                           className="kanban-resolution"
                           rows={2}
                           placeholder="Como foi resolvido? (mín. 8 caracteres)"
                           value={resolutionNotes[ticket.id] || ''}
-                          onChange={e => setResolutionNotes(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                          aria-invalid={Boolean(fieldErrors[ticket.id])}
+                          onChange={e => {
+                            setResolutionNotes(prev => ({ ...prev, [ticket.id]: e.target.value }))
+                            if (fieldErrors[ticket.id]) {
+                              setFieldErrors(prev => ({ ...prev, [ticket.id]: null }))
+                            }
+                          }}
                         />
+                      )}
+                      {fieldErrors[ticket.id] && (
+                        <p className="kanban-field-error" role="alert">{fieldErrors[ticket.id]}</p>
                       )}
 
                       {col.next && (

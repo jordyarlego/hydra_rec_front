@@ -34,7 +34,7 @@ export default function OfficialDataCoverage() {
       <header className="coverage-head">
         <div>
           <strong>O que está mapeado agora</strong>
-          <small>Transparência do estado atual da base — MVP, importação ainda manual.</small>
+          <small>Transparência da base oficial carregada. Seed é amostra; importação real é snapshot do portal público.</small>
         </div>
         <button type="button" className="btn-secondary btn-mini" onClick={load}>
           <ArrowClockwise size={13} weight="bold" aria-hidden="true" /> Atualizar
@@ -90,6 +90,13 @@ export default function OfficialDataCoverage() {
             ))}
           </ul>
         </details>
+      )}
+
+      {(reqs.total ?? 0) > 0 && (reqs.total ?? 0) < 200 && (
+        <p className="coverage-warning">
+          Base pequena: isto parece ser uma seed/amostra para demonstração. Ela ajuda a testar o cruzamento,
+          mas não representa todo o histórico da cidade.
+        </p>
       )}
 
       {nb.sample?.length > 0 && (

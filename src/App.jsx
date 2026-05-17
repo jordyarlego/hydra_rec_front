@@ -203,16 +203,19 @@ export default function App() {
 
   function handleMapClick(lat, lon) {
     if (reportGps?.lat == null || reportGps?.lon == null) {
-      const msg = 'Ative a localização do navegador para reportar.'
-      setReportError(msg)
-      toast.push({ kind: 'error', text: msg })
+      setReportError({
+        title: 'Localização não ativada',
+        body: 'Pra reportar, ative a localização no navegador. Você só pode reportar problemas perto de onde você está.',
+      })
       setReportOpen(false)
       return
     }
-    if (haversineKm(reportGps.lat, reportGps.lon, lat, lon) > 1.5) {
-      const msg = 'Escolha um ponto a até 1,5 km da sua localização atual.'
-      setReportError(msg)
-      toast.push({ kind: 'error', text: msg })
+    const dist = haversineKm(reportGps.lat, reportGps.lon, lat, lon)
+    if (dist > 1.5) {
+      setReportError({
+        title: 'Muito longe pra reportar',
+        body: `Esse ponto está a ${dist.toFixed(1)} km de você. Você só pode reportar problemas a até 1,5 km da sua localização. Aproxime o mapa de onde você está.`,
+      })
       setReportOpen(false)
       return
     }
@@ -224,7 +227,13 @@ export default function App() {
 
   async function handleSubmitReport(payload, coords = {}) {
     const result = await submitReport(payload)
-    if (coords.lat != null && coords.lon != null) loadNearby(coords.lat, coords.lon)
+    if (coords.lat != null && coords.lon != null) {
+      // Recarrega 2x: imediato (pra optimistic + qualquer dado já indexado)
+      // e depois de 1.5s (pra pegar o pin DEPOIS do pipeline IA + indexação)
+      loadNearby(coords.lat, coords.lon)
+      setTimeout(() => loadNearby(coords.lat, coords.lon), 1500)
+      setTimeout(() => loadNearby(coords.lat, coords.lon), 4000)
+    }
     if (result?.offline) {
       const msg = 'Sem conexão. Report salvo e será enviado automaticamente.'
       setReportError(msg)
@@ -345,7 +354,25 @@ export default function App() {
         reportLat={pendingReportLatLng?.lat}
         reportLon={pendingReportLatLng?.lon}
       />
-      {reportError && <div className="floating-form-error" role="alert">{reportError}</div>}
+      {reportError && (
+        typeof reportError === 'string' ? (
+          <div className="floating-form-error" role="alert">{reportError}</div>
+        ) : (
+          <div className="range-error-overlay" role="alert" onClick={() => setReportError(null)}>
+            <span className="range-error-overlay-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <circle cx="12" cy="16" r="0.6" fill="currentColor" />
+              </svg>
+            </span>
+            <div>
+              <strong>{reportError.title}</strong>
+              <small>{reportError.body}</small>
+            </div>
+          </div>
+        )
+      )}
       {reportDetailLoading && <div className="floating-form-error" role="status">Carregando report...</div>}
       <ReportPinPopup
         report={selectedReport}

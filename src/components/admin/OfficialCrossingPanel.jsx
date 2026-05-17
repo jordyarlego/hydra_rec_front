@@ -58,11 +58,21 @@ export default function OfficialCrossingPanel({ reportId }) {
   }
 
   const pr = data.priority_result
+  const sourceNames = {
+    seed_mvp: 'amostra seed',
+    emlurb_156: 'EMLURB 156',
+    defesa_civil: 'Defesa Civil',
+  }
+  const sources = (data.official_sources || []).map(s => sourceNames[s] || s).join(', ')
 
   return (
     <section className="ocp-panel">
       <h4 className="ocp-heading">Localização e histórico</h4>
-      <p className="ocp-summary">A IA usa esses dados pra calcular prioridade — quanto mais próximo de chamados oficiais antigos, mais urgente.</p>
+      <p className="ocp-summary">Cruzamento com a base de dados oficial.</p>
+      <p className="ocp-data-note">
+        Base atual: {data.official_request_count ?? '—'} registro(s)
+        {sources ? ` · ${sources}` : ''}.
+      </p>
 
       <div className="ocp-geo-row">
         {data.neighborhood && <span className="ocp-chip">{data.neighborhood}</span>}
@@ -113,7 +123,7 @@ export default function OfficialCrossingPanel({ reportId }) {
             // Reformula "0 registro(s) parecido(s) em Xm" pra deixar claro que zero é bom sinal
             const match = txt.match(/^0\s+registro\(s\)\s+parecido\(s\)\s+em\s+(\d+)m/i)
             if (match) {
-              return `Nenhum chamado oficial semelhante a ${match[1]}m — sem reincidência conhecida na área.`
+              return `Nenhum registro parecido a ${match[1]}m na base carregada. Pode existir fora da amostra/importação atual.`
             }
             return txt
           })()}

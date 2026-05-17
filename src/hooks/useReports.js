@@ -64,6 +64,34 @@ export function useReports() {
       const data = payload instanceof FormData
         ? await api.createReportForm(payload)
         : await api.createReport(payload)
+      if (data?.id) {
+        const fallback = payload instanceof FormData
+          ? {
+              type: payload.get('tipo'),
+              severity: payload.get('severidade'),
+              lat: Number(payload.get('lat')),
+              lon: Number(payload.get('lon')),
+              bairro: payload.get('bairro') || undefined,
+              description: payload.get('descricao') || undefined,
+            }
+          : {
+              type: payload.tipo,
+              severity: payload.severidade,
+              lat: payload.lat,
+              lon: payload.lon,
+              bairro: payload.bairro,
+              description: payload.descricao,
+            }
+        const optimistic = {
+          confirmed_count: 0,
+          likes_up: 0,
+          likes_down: 0,
+          created_at: new Date().toISOString(),
+          ...fallback,
+          ...data,
+        }
+        setReports(prev => [optimistic, ...prev.filter(r => r.id !== data.id)])
+      }
       return data
     } catch (e) {
       if (payload instanceof FormData && isNetworkFailure(e) && 'indexedDB' in window) {

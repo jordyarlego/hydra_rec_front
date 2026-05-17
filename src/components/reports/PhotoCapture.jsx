@@ -145,26 +145,23 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
   if (!file && !cameraOpen) {
     return (
       <>
-        <button
-          type="button"
-          className="photo-capture photo-capture-empty"
-          onClick={openCamera}
-        >
+        <div className="photo-capture photo-capture-empty">
           <span className="photo-empty-icon">
             <Camera size={36} weight="bold" aria-hidden="true" />
           </span>
           <strong>Adicionar foto</strong>
           <small>Toque pra abrir a câmera</small>
-          <span
+          <button type="button" className="photo-empty-main" onClick={openCamera}>
+            Abrir câmera
+          </button>
+          <button
+            type="button"
             className="photo-empty-alt"
             onClick={(e) => { e.stopPropagation(); openPicker() }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); openPicker() } }}
           >
             <ImageSquare size={12} weight="bold" /> ou escolher da galeria
-          </span>
-        </button>
+          </button>
+        </div>
         {cameraError && <span className="photo-capture-error">{cameraError}</span>}
         <input
           ref={inputRef}

@@ -50,13 +50,13 @@ function ToastStack({ items, onDismiss }) {
   return (
     <div className="toast-stack" role="region" aria-live="polite" aria-label="Notificações">
       {items.map(t => (
-        <div key={t.id} className={`toast ${t.kind || 'info'}`}>
+        <div key={t.id} className={`toast ${t.kind || 'info'}`} role={t.kind === 'error' ? 'alert' : 'status'}>
           <span className="toast-icon">
             {t.kind === 'success' ? <CheckCircle size={18} weight="fill" />
              : t.kind === 'error' ? <XCircle size={18} weight="fill" />
              : <Info size={18} weight="bold" />}
           </span>
-          <span>{t.text}</span>
+          <span className="toast-text">{t.text}</span>
           {t.dismissible !== false && (
             <button type="button" onClick={() => onDismiss(t.id)} aria-label="Fechar" style={{ color: 'inherit', opacity: .6, marginLeft: 8 }}>
               <X size={14} weight="bold" />

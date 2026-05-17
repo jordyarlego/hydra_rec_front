@@ -104,6 +104,7 @@ test('admin mobile keeps triage and kanban usable without horizontal overflow', 
   await page.getByRole('button', { name: 'Fechar' }).click()
   await expect(page.getByRole('heading', { name: 'Detalhe do report' })).toBeHidden()
 
+  await page.getByRole('button', { name: 'Abrir menu' }).click()
   await page.getByRole('button', { name: /Chamados/i }).click()
   await expect(page.getByRole('heading', { name: 'Chamados em andamento' })).toBeVisible()
   await expect(page.locator('.kanban-column')).toHaveCount(3)

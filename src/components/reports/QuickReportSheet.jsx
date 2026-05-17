@@ -163,8 +163,8 @@ export function QuickReportSheet({
       if (photo) form.append('photo', photo)
       await onSubmit(form, { lat: reportLat, lon: reportLon })
       setDone(true)
-      toast.push({ kind: 'success', text: 'Report enviado! Pin caindo no mapa…' })
-      setTimeout(() => onClose?.(), 900)
+      toast.push({ kind: 'success', text: 'Report enviado. O pin já entrou no mapa e vai para triagem.' })
+      setTimeout(() => onClose?.(), 650)
     } catch (err) {
       setError(err.message)
     } finally {
