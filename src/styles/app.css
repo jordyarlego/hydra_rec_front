@@ -6693,3 +6693,167 @@ a:hover { color: #f5b347; }
 /* popup atrás do modal de report (z=80) */
 .leaflet-popup-pane { z-index: 700 !important; }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   FIX: "vermelho bugado" antes do popup = outline/highlight do
+   marker quando ganha :focus. Marker é uma <img> que vira focável
+   ao clicar, browsers desenham outline grosso. Suprime.
+   ═══════════════════════════════════════════════════════════════ */
+.leaflet-marker-icon,
+.leaflet-marker-icon:focus,
+.leaflet-marker-icon:focus-visible,
+.leaflet-marker-icon:active,
+.leaflet-interactive,
+.leaflet-interactive:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ReportPinPopup novo — hero com ícone da categoria + overlay
+   ═══════════════════════════════════════════════════════════════ */
+.pin-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: hr-fade-in var(--dur-2) var(--ease-out);
+}
+.pin-popup-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface-1);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  border: 1px solid var(--glass-stroke);
+  animation: hr-scale-in .32s var(--ease-spring);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.pin-popup-hero {
+  position: relative;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.pin-popup-close {
+  position: absolute;
+  top: var(--space-3); right: var(--space-3);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(8px);
+  color: white;
+  display: grid; place-items: center;
+  border: 0;
+  cursor: pointer;
+  transition: background .12s;
+}
+.pin-popup-close:hover { background: rgba(0,0,0,.55); }
+.pin-popup-hero-icon {
+  width: 88px; height: 88px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.92);
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(0,0,0,.30);
+}
+.pin-popup-hero-icon img {
+  width: 64px; height: 64px;
+  object-fit: contain;
+}
+.pin-popup-hero-meta {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  justify-content: center;
+}
+.pin-popup-sev-pill {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(8px);
+}
+.pin-popup-body {
+  padding: var(--space-4);
+  display: flex; flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+.pin-popup-title-h3 {
+  font-size: var(--text-lg); font-weight: 600;
+  letter-spacing: -.01em;
+}
+.pin-popup-meta {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.pin-popup-desc {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+  background: var(--glass-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--brand-amber);
+}
+.pin-popup-userphoto {
+  display: flex; flex-direction: column;
+  gap: 6px;
+}
+.pin-popup-userphoto small {
+  font-size: var(--text-2xs);
+  color: var(--text-4);
+  letter-spacing: .04em;
+}
+.pin-popup-userphoto img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-stroke);
+}
+.pin-popup-votes {
+  display: flex; gap: 8px;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--glass-stroke);
+}
+.pin-popup-vote-btn {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--glass-2);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  transition: all var(--dur-1);
+  cursor: pointer;
+}
+.pin-popup-vote-btn:hover { background: var(--glass-3); }
+.pin-popup-vote-btn.up.active   { background: rgba(58,214,130,.16); color: var(--risk-seguro); border-color: rgba(58,214,130,.35); }
+.pin-popup-vote-btn.down.active { background: rgba(248,113,113,.16); color: var(--risk-alto); border-color: rgba(248,113,113,.35); }
+.pin-popup-vote-btn strong {
+  margin-left: auto;
+  font-feature-settings: "tnum";
+}
+
+/* Light theme overrides */
+.app-root.light .pin-popup-card { background: #fff; }
+.app-root.light .pin-popup-desc { background: rgba(13,17,28,.04); }
+.app-root.light .pin-popup-userphoto img { border-color: rgba(13,17,28,.08); }
+
