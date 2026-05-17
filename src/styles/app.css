@@ -6653,3 +6653,50 @@ a:hover { color: #f5b347; }
   .odh-buttons { flex-direction: row; }
 }
 
+
+/* ── FIX: pins tamanho fixo independente do zoom ────── */
+.hr-report-pin-wrap,
+.leaflet-marker-icon.hr-report-pin-wrap {
+  width: 36px !important;
+  height: 44px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  pointer-events: auto !important;
+}
+.hr-report-pin {
+  position: relative !important;
+  display: block !important;
+  width: 36px !important;
+  height: 44px !important;
+  transform: none !important;
+}
+.hr-report-pin svg {
+  width: 36px !important;
+  height: 44px !important;
+  display: block !important;
+}
+.hr-report-pin-inner {
+  position: absolute !important;
+  top: 5px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+.hr-report-pin-inner img {
+  width: 20px !important;
+  height: 20px !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+  display: block !important;
+}
+

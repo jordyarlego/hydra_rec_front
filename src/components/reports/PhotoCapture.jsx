@@ -20,16 +20,20 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
       return
     }
 
-    const cacheKey = `${file.name}|${file.size}|${file.lastModified || ''}`
-    const cached = sessionStorage.getItem(`hr_ai_photo:${cacheKey}`)
+    // Cache key: usa só nome+tamanho. Cache só persiste sucesso real (description).
+    const cacheKey = `${file.name}|${file.size}`
+    const cached = sessionStorage.getItem(`hr_ai_photo_v2:${cacheKey}`)
     if (cached) {
       try {
         const data = JSON.parse(cached)
-        setAiAnalysis(data)
-        if (data.suggested_type && CATEGORY_BY_ID[data.suggested_type]) {
-          onAiSuggest?.(data.suggested_type)
+        // Só usa cache se tiver descrição válida
+        if (data?.description) {
+          setAiAnalysis(data)
+          if (data.suggested_type && CATEGORY_BY_ID[data.suggested_type]) {
+            onAiSuggest?.(data.suggested_type)
+          }
+          return
         }
-        return
       } catch { /* ignora */ }
     }
 
@@ -38,28 +42,38 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
     setAiAnalysis(null)
     setAiError(null)
 
+    // Debounce mais curto (800ms) — usuário fica menos esperando
     const debounceTimer = setTimeout(() => {
       if (cancelled) return
       const form = new FormData()
       form.append('photo', file)
+      const startedAt = Date.now()
       fetch('/api/ai/describe-photo', { method: 'POST', body: form })
-        .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.json()
+        })
         .then(data => {
           if (cancelled) return
-          try { sessionStorage.setItem(`hr_ai_photo:${cacheKey}`, JSON.stringify(data)) } catch {}
+          console.info('[ai/describe-photo]', `${Date.now()-startedAt}ms`, data)
+          // Só cacheia se tiver description (não cacheia "all_providers_failed")
+          if (data?.description) {
+            try { sessionStorage.setItem(`hr_ai_photo_v2:${cacheKey}`, JSON.stringify(data)) } catch {}
+          }
           setAiAnalysis(data)
-          if (data.suggested_type && CATEGORY_BY_ID[data.suggested_type]) {
+          if (data?.suggested_type && CATEGORY_BY_ID[data.suggested_type]) {
             onAiSuggest?.(data.suggested_type)
           }
         })
         .catch(err => {
           if (!cancelled) {
+            console.warn('[ai/describe-photo] erro:', err)
             setAiError(err.message || 'IA indisponível')
             setAiAnalysis(null)
           }
         })
         .finally(() => { if (!cancelled) setAiLoading(false) })
-    }, 1500)
+    }, 800)
 
     return () => {
       cancelled = true

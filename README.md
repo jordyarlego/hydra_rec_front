@@ -4,7 +4,7 @@ App cívico mobile-first do projeto HydraRec — mapa do Recife com risco
 climático em tempo real, reports comunitários (com câmera + IA),
 notificações push, modo offline e painel administrativo separado em `/admin`.
 
-> Projeto de TCC — UFPE 2026 — Jordy Arlego.
+> Plataforma cívica · Recife.
 > Backend: [hydra_rec_back](https://github.com/jordyarlego/hydra_rec_back)
 
 ---
@@ -26,7 +26,7 @@ notificações push, modo offline e painel administrativo separado em `/admin`.
 **Decisão proposital:** sem framework de routing (react-router), sem
 estado global (Redux/Zustand). `main.jsx` decide entre `App` e
 `AdminPage` pelo `window.location.pathname`. Estado vive em hooks
-locais. Justificativa: TCC, projeto < 50 componentes, lazy loading
+locais. Justificativa: projeto < 50 componentes, lazy loading
 do admin já segura o bundle público em 124KB gzip.
 
 ---
