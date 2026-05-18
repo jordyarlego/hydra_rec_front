@@ -99,8 +99,10 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
               {meteoSuspect && (
                 <span
                   className="hero-feels-warn"
-                  title="Combinação umidade/temperatura improvável — sensor pode estar saturado. Próxima leitura confiável da APAC pode demorar."
+                  tabIndex={0}
+                  role="button"
                   aria-label="Leitura possivelmente saturada"
+                  data-tooltip="Combinação umidade/temperatura improvável. Sensor da estação pode estar saturado — próxima leitura confiável da APAC pode demorar."
                 >
                   {' '}⚠
                 </span>

@@ -154,9 +154,11 @@ body {
   z-index: 1;
   top: 6px;
   right: -14px;
-  width: min(72%, 320px);
-  aspect-ratio: 320 / 240;
-  max-height: 240px;
+  /* Sprite v3 = 4 colunas × 2 linhas, cada célula 314×627 (ratio 1:2 portrait).
+     Forçar ratio 4:3 estava achatando a lua. Mantém ratio correto da célula. */
+  width: min(40%, 180px);
+  aspect-ratio: 314 / 627;
+  max-height: 260px;
   pointer-events: none;
   background-repeat: no-repeat;
   background-size: 400% 200%;
@@ -5921,9 +5923,54 @@ a:hover { color: #f5b347; }
   opacity: .65;
 }
 .hero-feels-warn {
+  position: relative;
+  display: inline-block;
   color: var(--risk-medio, #f97316);
   font-weight: 700;
   cursor: help;
+  padding: 0 2px;
+}
+.hero-feels-warn[data-tooltip]:hover::after,
+.hero-feels-warn[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, .96);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.hero-feels-warn[data-tooltip]:hover::before,
+.hero-feels-warn[data-tooltip]:focus-visible::before {
+  content: '';
+  position: absolute;
+  z-index: 51;
+  top: calc(100% + 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: rgba(15, 23, 42, .96);
+  pointer-events: none;
+}
+.light .hero-feels-warn[data-tooltip]:hover::after,
+.light .hero-feels-warn[data-tooltip]:focus-visible::after {
+  background: rgba(15, 42, 80, .96);
+}
+.light .hero-feels-warn[data-tooltip]:hover::before,
+.light .hero-feels-warn[data-tooltip]:focus-visible::before {
+  border-bottom-color: rgba(15, 42, 80, .96);
 }
 .hero-source-station {
   display: inline-flex;
