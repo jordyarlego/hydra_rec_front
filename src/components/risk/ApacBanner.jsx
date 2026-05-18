@@ -1,4 +1,5 @@
 import { getRiskColor } from '../../lib/riskColors.js'
+import { exactTimeRecife, timeAgoFromApac } from '../../lib/apacTime.js'
 
 /* ════════════════════════════════════════════════════
    ApacBanner — só aparece quando HÁ CHUVA REAL.
@@ -12,28 +13,10 @@ const NIVEL = {
   MODERADO: { label: 'Chuva moderada na região',     acao: 'Cuidado em vias baixas se for sair.' },
 }
 
-function timeAgoLong(captured) {
-  if (!captured) return null
-  const diffMs = Date.now() - new Date(captured).getTime()
-  if (Number.isNaN(diffMs)) return null
-  const min = Math.floor(diffMs / 60000)
-  if (min < 1)  return 'agora há pouco'
-  if (min < 60) return `há ${min} min`
-  return `há ${Math.floor(min / 60)} h`
-}
-
-function exactTime(captured) {
-  if (!captured) return null
-  try {
-    return new Date(captured).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/Recife',
-    })
-  } catch {
-    return null
-  }
-}
+/* timeAgo + exactTime agora delegam pro lib/apacTime.js (defensivo
+   contra strings APAC sem timezone — sempre converte pra Recife). */
+const timeAgoLong = timeAgoFromApac
+const exactTime = exactTimeRecife
 
 export function ApacBanner({ boletim, light = false }) {
   if (!boletim) return null

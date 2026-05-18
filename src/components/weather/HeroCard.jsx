@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Info } from '@phosphor-icons/react'
 import { ScoreRing } from '../risk/ScoreRing.jsx'
 import { AtmosphericBg } from '../effects/AtmosphericBg.jsx'
+import { exactTimeRecife } from '../../lib/apacTime.js'
 
 /* ════════════════════════════════════════════════════
    HeroCard v3 — MANTÉM A LINHA DE CHUVA (mm/h).
@@ -46,12 +47,9 @@ function prettyStation(raw) {
   return s
 }
 
-function formatExactTime(captured_at) {
-  if (!captured_at) return null
-  try {
-    return new Date(captured_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  } catch { return null }
-}
+/* Usa exactTimeRecife do lib/apacTime — defensivo contra strings APAC
+   sem timezone. Sempre converte pra America/Recife. */
+const formatExactTime = exactTimeRecife
 
 export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
   const [sourcesOpen, setSourcesOpen] = useState(false)
