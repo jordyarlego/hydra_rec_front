@@ -16,7 +16,6 @@ export function MapStage({
   bairro,
   risk,
   reports,
-  resolvedWeek = [],
   loading,
   error,
   darkMode,
@@ -41,7 +40,6 @@ export function MapStage({
         bairro={bairro}
         risk={risk}
         reports={reports}
-        resolvedWeek={resolvedWeek}
         loading={loading}
         error={error}
         darkMode={darkMode}

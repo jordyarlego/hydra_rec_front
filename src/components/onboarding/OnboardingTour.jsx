@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'O mapa mostra tudo',
-    body: 'Pins coloridos = reports da galera. Pin verde com ✓ = já resolvido pela prefeitura. Use o filtro de categorias se quiser ver só um tipo (buraco, lixo, etc).',
+    body: 'Cada pin é um report da galera. A borda mostra a gravidade: verde (leve), laranja (moderado), vermelho (grave). Use o filtro de categorias se quiser ver só um tipo (buraco, lixo, etc).',
   },
   {
     title: 'Reporte sem fazer login',

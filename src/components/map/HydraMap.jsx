@@ -71,18 +71,9 @@ function makeReportIcon(report) {
   })
 }
 
-/** Pin verde leve pra reports JÁ RESOLVIDOS pela prefeitura nos últimos 7d.
- *  Não compete visualmente com os pins ativos: menor, translúcido, com ✓.
- *  Loop cívico de impacto positivo. */
-function makeResolvedIcon() {
-  return L.divIcon({
-    className: 'hr-resolved-pin',
-    html: '<span aria-hidden="true">✓</span>',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    popupAnchor: [0, -12],
-  })
-}
+/* (removido) makeResolvedIcon — verde do "resolvido" conflitava com
+   verde da severidade `leve`, confundindo cidadão. Loop cívico fica
+   por conta das stats da semana na sidebar. */
 
 
 
@@ -90,7 +81,6 @@ export function HydraMap({
   bairro,
   risk,
   reports = [],
-  resolvedWeek = [],
   darkMode = true,
   bairroFilter = false,
   onMapClick,
@@ -104,7 +94,6 @@ export function HydraMap({
   const gpsWatchRef = useRef(null)
 
   const [showReports, setShowReports] = useState(true)
-  const [showResolved, setShowResolved] = useState(true)
   const [showCriticos, setShowCriticos] = useState(true)
   const [showDC, setShowDC] = useState(false)
   const [hiddenCats, setHiddenCats] = useState(() => loadHiddenCats())
@@ -312,42 +301,6 @@ export function HydraMap({
       : layersRef.current.reports.remove()
   }, [showReports])
 
-  // ── Reports resolvidos pela prefeitura nos últimos 7 dias ────────────────
-  useEffect(() => {
-    if (!mapRef.current) return
-    layersRef.current.resolved?.clearLayers()
-    const group = L.layerGroup()
-    const icon = makeResolvedIcon()
-    for (const r of resolvedWeek) {
-      if (r.lat == null || r.lon == null) continue
-      const cat = CATEGORY_BY_ID[r.type] || CATEGORY_BY_ID.outro
-      const resolvedAgo = (() => {
-        if (!r.resolved_at) return ''
-        const diff = Date.now() - new Date(r.resolved_at).getTime()
-        const d = Math.floor(diff / 86_400_000)
-        if (d < 1) return 'hoje'
-        return d === 1 ? 'ontem' : `há ${d}d`
-      })()
-      L.marker([r.lat, r.lon], { icon, zIndexOffset: -200 })
-        .bindPopup(
-          `<div class="map-popup map-popup--resolved">
-             <b>✓ Resolvido ${resolvedAgo}</b><br/>
-             <span>${cat.label}${r.bairro ? ' · ' + r.bairro : ''}</span>
-           </div>`
-        )
-        .addTo(group)
-    }
-    layersRef.current.resolved = group
-    if (showResolved) group.addTo(mapRef.current)
-  }, [resolvedWeek]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!mapRef.current || !layersRef.current.resolved) return
-    showResolved
-      ? layersRef.current.resolved.addTo(mapRef.current)
-      : layersRef.current.resolved.remove()
-  }, [showResolved])
-
   // ── Pontos críticos ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return
@@ -386,31 +339,93 @@ export function HydraMap({
     layersRef.current.dc?.remove()
     if (!showDC) return
     const group = L.layerGroup()
-    // Hotspots vêm com neighborhood + recurrence_score (sem lat/lon direto)
-    // Vou geocodificar pelo BAIRRO_COORDS
     for (const h of dcHotspots) {
       const center = BAIRRO_COORDS[h.neighborhood]
       if (!center || center.length !== 2) continue
       const score = Number(h.recurrence_score || 0)
       const radius = Math.min(800, 200 + score * 80)
       const color = score >= 5 ? '#a855f7' : score >= 3 ? '#ef4444' : '#f97316'
-      L.circle(center, {
+
+      const initialHtml = `
+        <div class="map-popup map-popup--official">
+          <b>${h.neighborhood || 'Bairro'}</b>
+          <div class="mp-meta">Recorrência <b>${score.toFixed(1)}</b>${h.nearest_road_name ? ` · ${h.nearest_road_name}` : ''}</div>
+          <div class="mp-loading">Carregando chamados oficiais…</div>
+          <small>Dados públicos EMLURB / Defesa Civil</small>
+        </div>`
+
+      const circle = L.circle(center, {
         radius,
         color,
         fillColor: color,
         fillOpacity: 0.10,
         weight: 1.5,
         dashArray: '4 4',
+      }).bindPopup(initialHtml).addTo(group)
+
+      circle.on('popupopen', async () => {
+        try {
+          const url = `/api/official/hotspot-detail?neighborhood=${encodeURIComponent(h.neighborhood)}`
+          const res = await fetch(url)
+          if (!res.ok) throw new Error('http')
+          const data = await res.json()
+          const topCats = (data.top_categories || []).slice(0, 4)
+          const sample = (data.sample || []).slice(0, 4)
+          const statusPill = (s) => {
+            const t = String(s || '').toLowerCase()
+            if (/conclu|finaliz|atendid|fechad|resolv/.test(t)) return '<span class="mp-pill mp-pill-done">concluído</span>'
+            if (/andament|execu|servic|agendad/.test(t)) return '<span class="mp-pill mp-pill-doing">em atendimento</span>'
+            if (/cancel|indeferid/.test(t)) return '<span class="mp-pill mp-pill-cancel">cancelado</span>'
+            return '<span class="mp-pill mp-pill-open">aberto</span>'
+          }
+          const fmtDate = (iso) => {
+            if (!iso) return ''
+            const d = new Date(iso)
+            if (Number.isNaN(d.getTime())) return ''
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+          }
+
+          const catsHtml = topCats.length === 0 ? '' : `
+            <div class="mp-cats">
+              ${topCats.map(c => `<span class="mp-cat">${c.category || 'outro'} · <b>${c.count}</b></span>`).join('')}
+            </div>`
+
+          const sampleHtml = sample.length === 0 ? '' : `
+            <ul class="mp-sample">
+              ${sample.map(s => `
+                <li>
+                  <div class="mp-sample-top">
+                    <span class="mp-sample-type">${s.service_type || s.category || 'Solicitação'}</span>
+                    ${statusPill(s.status)}
+                  </div>
+                  <div class="mp-sample-meta">
+                    ${s.street_name ? s.street_name + ' · ' : ''}${fmtDate(s.opened_at)}${s.agency ? ' · ' + s.agency : ''}
+                  </div>
+                </li>
+              `).join('')}
+            </ul>`
+
+          const fullHtml = `
+            <div class="map-popup map-popup--official">
+              <b>${h.neighborhood || 'Bairro'}</b>
+              <div class="mp-meta">${data.total} chamado${data.total === 1 ? '' : 's'} oficiais (últimos ${Math.round(data.days/30)} meses)</div>
+              ${catsHtml}
+              ${sampleHtml}
+              <small>Dados públicos EMLURB / Defesa Civil</small>
+            </div>`
+
+          circle.getPopup().setContent(fullHtml)
+        } catch {
+          circle.getPopup().setContent(
+            `<div class="map-popup map-popup--official">
+              <b>${h.neighborhood || 'Bairro'}</b>
+              <div class="mp-meta">Recorrência <b>${score.toFixed(1)}</b></div>
+              <div class="mp-error">Sem detalhamento disponível no momento.</div>
+              <small>Dados públicos EMLURB / Defesa Civil</small>
+            </div>`
+          )
+        }
       })
-        .bindPopup(
-          `<div class="map-popup">
-            <b>${h.neighborhood || 'Bairro'}</b><br/>
-            Histórico: <b>${score.toFixed(1)}</b> de recorrência<br/>
-            ${h.nearest_road_name ? `Via mais citada: ${h.nearest_road_name}<br/>` : ''}
-            <small>Dados oficiais EMLURB / Defesa Civil</small>
-          </div>`
-        )
-        .addTo(group)
     }
     layersRef.current.dc = group
     group.addTo(mapRef.current)
@@ -428,15 +443,6 @@ export function HydraMap({
         >
           <span className="layer-dot" style={{ background: '#f97316' }} />
           Reports
-        </button>
-        <button
-          className={`map-layer-btn ${showResolved ? 'active' : ''}`}
-          onClick={() => setShowResolved(v => !v)}
-          aria-pressed={showResolved}
-          title="Resolvidos pela prefeitura nos últimos 7 dias"
-        >
-          <span className="layer-dot" style={{ background: '#22c55e' }} />
-          Resolvidos {resolvedWeek.length > 0 && `(${resolvedWeek.length})`}
         </button>
         <button
           className={`map-layer-btn ${showCriticos ? 'active' : ''}`}
