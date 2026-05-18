@@ -38,4 +38,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ endpoint }),
     }),
+  getResolvedWeek: ({ days = 7, limit = 200 } = {}) =>
+    request(`/api/reports/resolved-week?days=${days}&limit=${limit}`),
 }

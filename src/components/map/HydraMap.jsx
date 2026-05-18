@@ -54,12 +54,26 @@ function makeReportIcon(report) {
   })
 }
 
+/** Pin verde leve pra reports JÁ RESOLVIDOS pela prefeitura nos últimos 7d.
+ *  Não compete visualmente com os pins ativos: menor, translúcido, com ✓.
+ *  Loop cívico de impacto positivo. */
+function makeResolvedIcon() {
+  return L.divIcon({
+    className: 'hr-resolved-pin',
+    html: '<span aria-hidden="true">✓</span>',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -12],
+  })
+}
+
 
 
 export function HydraMap({
   bairro,
   risk,
   reports = [],
+  resolvedWeek = [],
   darkMode = true,
   bairroFilter = false,
   onMapClick,
@@ -73,6 +87,7 @@ export function HydraMap({
   const gpsWatchRef = useRef(null)
 
   const [showReports, setShowReports] = useState(true)
+  const [showResolved, setShowResolved] = useState(true)
   const [showCriticos, setShowCriticos] = useState(true)
   const [showDC, setShowDC] = useState(false)
   const [dcHotspots, setDcHotspots] = useState([])
@@ -262,6 +277,42 @@ export function HydraMap({
       : layersRef.current.reports.remove()
   }, [showReports])
 
+  // ── Reports resolvidos pela prefeitura nos últimos 7 dias ────────────────
+  useEffect(() => {
+    if (!mapRef.current) return
+    layersRef.current.resolved?.clearLayers()
+    const group = L.layerGroup()
+    const icon = makeResolvedIcon()
+    for (const r of resolvedWeek) {
+      if (r.lat == null || r.lon == null) continue
+      const cat = CATEGORY_BY_ID[r.type] || CATEGORY_BY_ID.outro
+      const resolvedAgo = (() => {
+        if (!r.resolved_at) return ''
+        const diff = Date.now() - new Date(r.resolved_at).getTime()
+        const d = Math.floor(diff / 86_400_000)
+        if (d < 1) return 'hoje'
+        return d === 1 ? 'ontem' : `há ${d}d`
+      })()
+      L.marker([r.lat, r.lon], { icon, zIndexOffset: -200 })
+        .bindPopup(
+          `<div class="map-popup map-popup--resolved">
+             <b>✓ Resolvido ${resolvedAgo}</b><br/>
+             <span>${cat.label}${r.bairro ? ' · ' + r.bairro : ''}</span>
+           </div>`
+        )
+        .addTo(group)
+    }
+    layersRef.current.resolved = group
+    if (showResolved) group.addTo(mapRef.current)
+  }, [resolvedWeek]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!mapRef.current || !layersRef.current.resolved) return
+    showResolved
+      ? layersRef.current.resolved.addTo(mapRef.current)
+      : layersRef.current.resolved.remove()
+  }, [showResolved])
+
   // ── Pontos críticos ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return
@@ -342,6 +393,15 @@ export function HydraMap({
         >
           <span className="layer-dot" style={{ background: '#f97316' }} />
           Reports
+        </button>
+        <button
+          className={`map-layer-btn ${showResolved ? 'active' : ''}`}
+          onClick={() => setShowResolved(v => !v)}
+          aria-pressed={showResolved}
+          title="Resolvidos pela prefeitura nos últimos 7 dias"
+        >
+          <span className="layer-dot" style={{ background: '#22c55e' }} />
+          Resolvidos {resolvedWeek.length > 0 && `(${resolvedWeek.length})`}
         </button>
         <button
           className={`map-layer-btn ${showCriticos ? 'active' : ''}`}

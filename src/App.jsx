@@ -3,6 +3,7 @@ import { useWebSocket } from './hooks/useWebSocket.js'
 import { useTheme } from './hooks/useTheme.js'
 import { useDashboard } from './hooks/useDashboard.js'
 import { useReports } from './hooks/useReports.js'
+import { useResolvedWeek } from './hooks/useResolvedWeek.js'
 import { soundMgr, wmoToCondition, CONDITION_THEME } from './lib/soundManager.js'
 import { BAIRRO_COORDS } from './data/bairro_coords.js'
 import { findBairroByPoint, getBairroCenterFromGeojson, loadBairrosGeojson } from './lib/bairroGeo.js'
@@ -88,6 +89,8 @@ export default function App() {
   const onWsData = useCallback(d => { if (d?.risk) setData(d) }, [setData])
   useWebSocket(bairro, onWsData)
   const { reports, loadNearby, submitReport, confirmReport, likeReport, getReport } = useReports()
+  const { data: resolvedWeekData } = useResolvedWeek()
+  const resolvedWeek = resolvedWeekData?.reports || []
 
   /* ── Derive condition/theme from weather code ── */
   const condition = wmoToCondition(data?.weather?.current?.weather_code ?? 0)
@@ -342,6 +345,7 @@ export default function App() {
           bairro={bairro}
           risk={data?.risk}
           reports={reports}
+          resolvedWeek={resolvedWeek}
           loading={loading}
           error={error}
           darkMode={!isLight}
