@@ -61,6 +61,7 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
 
   const temp     = weather.temp_c       != null ? Math.round(weather.temp_c)       : null
   const humidity = weather.humidity_pct != null ? Math.round(weather.humidity_pct) : null
+  const meteoSuspect = weather.meteo_suspect === true
   const rain1h   = weather.rain_1h_mm
 
   const stationName = prettyStation(weather.station_name) || 'Estação indisponível'
@@ -93,7 +94,18 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
           <div className="hero-condition">{RAIN_LEVEL_LABEL[rainLevel] || weather.condition || '—'}</div>
           <div className="hero-temp">{temp != null ? `${temp}°` : '—'}</div>
           {humidity != null && (
-            <div className="hero-feels">{humidity}% umidade</div>
+            <div className={`hero-feels${meteoSuspect ? ' is-suspect' : ''}`}>
+              {humidity}% umidade
+              {meteoSuspect && (
+                <span
+                  className="hero-feels-warn"
+                  title="Combinação umidade/temperatura improvável — sensor pode estar saturado. Próxima leitura confiável da APAC pode demorar."
+                  aria-label="Leitura possivelmente saturada"
+                >
+                  {' '}⚠
+                </span>
+              )}
+            </div>
           )}
         </div>
         <div className="hero-ring-wrap">

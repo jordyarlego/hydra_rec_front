@@ -5917,6 +5917,14 @@ a:hover { color: #f5b347; }
   font-size: 10px;
   letter-spacing: .04em;
 }
+.hero-feels.is-suspect {
+  opacity: .65;
+}
+.hero-feels-warn {
+  color: var(--risk-medio, #f97316);
+  font-weight: 700;
+  cursor: help;
+}
 .hero-source-station {
   display: inline-flex;
   align-items: center;
