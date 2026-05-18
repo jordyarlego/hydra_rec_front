@@ -5911,6 +5911,12 @@ a:hover { color: #f5b347; }
 .app-root.light .hero-source,
 .light .hero-source { border-top-color: rgba(13,17,28,.06); }
 .hero-source .is-stale { color: var(--risk-alto); }
+.hero-source-ago {
+  opacity: .7;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+}
 .hero-source-station {
   display: inline-flex;
   align-items: center;

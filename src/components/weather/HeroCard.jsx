@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Info } from '@phosphor-icons/react'
 import { ScoreRing } from '../risk/ScoreRing.jsx'
 import { AtmosphericBg } from '../effects/AtmosphericBg.jsx'
-import { exactTimeRecife } from '../../lib/apacTime.js'
+import { exactTimeRecife, timeAgoFromApac } from '../../lib/apacTime.js'
 
 /* ════════════════════════════════════════════════════
    HeroCard v3 — MANTÉM A LINHA DE CHUVA (mm/h).
@@ -66,6 +66,7 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
   const stationName = prettyStation(weather.station_name) || 'Estação indisponível'
   const stationDist = weather.station_distance_m
   const exactTime   = formatExactTime(weather.captured_at)
+  const ago         = timeAgoFromApac(weather.captured_at)
   const stale       = weather.is_stale === true
 
   // Detalhe das fontes pra explicar divergência com Google/site APAC oficial
@@ -140,8 +141,12 @@ export function HeroCard({ bairro, weather, risk, light = false, onExplain }) {
             </button>
           )}
         </span>
-        <span className={stale ? 'is-stale' : ''}>
-          {exactTime ? `atualizado ${exactTime}` : 'agora'}
+        <span
+          className={stale ? 'is-stale' : ''}
+          title={stale ? 'CEMADEN só publica nova leitura quando há evento (chuva, vento). Em dia seco, pode ficar parado por horas.' : ''}
+        >
+          {exactTime ? `${exactTime}` : 'agora'}
+          {ago && <span className="hero-source-ago"> · {ago}</span>}
         </span>
       </div>
 
