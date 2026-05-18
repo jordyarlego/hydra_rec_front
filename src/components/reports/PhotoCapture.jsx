@@ -2,12 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, ImageSquare, X, Sparkle, Robot } from '@phosphor-icons/react'
 import { CATEGORY_BY_ID } from '../../data/report_categories.js'
 
+/* PhotoCapture — sem getUserMedia/WebRTC.
+
+   Em mobile o jeito certo é delegar pro app de câmera nativo via
+   <input type="file" accept="image/*" capture="environment">. Isso:
+     • Abre a câmera real do celular (Android + iOS), com UI nativa
+     • Não exige permissão JavaScript extra
+     • Não dá tela preta em PWA / Safari iOS / HTTP local
+     • EXIF preservado (backend Pillow trata orientação)
+
+   No desktop, o mesmo input vira seletor de arquivo padrão — esperado.
+*/
 export function PhotoCapture({ file, onChange, onAiSuggest }) {
   const inputRef = useRef(null)
-  const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const [cameraOpen, setCameraOpen] = useState(false)
-  const [cameraError, setCameraError] = useState(null)
   const [aiAnalysis, setAiAnalysis] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState(null)
@@ -81,60 +88,26 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
     }
   }, [file, onAiSuggest])
 
-  function stopCamera() {
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
-    setCameraOpen(false)
-  }
-
   useEffect(() => {
     return () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }
   }, [previewUrl])
 
-  useEffect(() => stopCamera, [])
-
-  async function openCamera() {
-    setCameraError(null)
-    if (!navigator.mediaDevices?.getUserMedia) {
-      inputRef.current?.click()
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      })
-      streamRef.current = stream
-      setCameraOpen(true)
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
-        }
-      }, 0)
-    } catch {
-      setCameraError('Câmera indisponível. Usando seletor de foto.')
-      inputRef.current?.click()
-    }
-  }
-
-  async function captureFrame() {
-    const video = videoRef.current
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
-    canvas.toBlob(blob => {
-      if (!blob) return
-      const photo = new File([blob], `hydrarec-report-${Date.now()}.jpg`, { type: 'image/jpeg' })
-      onChange(photo)
-      stopCamera()
-    }, 'image/jpeg', 0.88)
-  }
-
-  function openPicker() {
+  /* Abre câmera nativa do celular (ou seletor de arquivo no desktop).
+     O atributo capture="environment" no <input> faz Android/iOS
+     mostrarem a câmera traseira direto. */
+  function openCamera() {
     inputRef.current?.click()
+  }
+
+  /* Versão sem capture pra escolher da galeria explicitamente. */
+  function openPicker() {
+    const el = inputRef.current
+    if (!el) return
+    const prev = el.getAttribute('capture')
+    el.removeAttribute('capture')
+    el.click()
+    // Restaura capture pro próximo "abrir câmera"
+    setTimeout(() => { if (prev) el.setAttribute('capture', prev) }, 200)
   }
 
   // Mostra IA quando: tem descrição (mesmo se ai_used=false do fallback)
@@ -142,7 +115,7 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
   const aiCat = aiAnalysis?.suggested_type && CATEGORY_BY_ID[aiAnalysis.suggested_type]
 
   // ────────── EMPTY STATE: container inteiro vira CTA ──────────
-  if (!file && !cameraOpen) {
+  if (!file) {
     return (
       <>
         <div className="photo-capture photo-capture-empty">
@@ -162,7 +135,6 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
             <ImageSquare size={12} weight="bold" /> ou escolher da galeria
           </button>
         </div>
-        {cameraError && <span className="photo-capture-error">{cameraError}</span>}
         <input
           ref={inputRef}
           type="file"
@@ -172,23 +144,6 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
           onChange={e => onChange(e.target.files?.[0] || null)}
         />
       </>
-    )
-  }
-
-  // ────────── CAMERA OPEN ──────────
-  if (cameraOpen) {
-    return (
-      <div className="photo-capture camera-mode">
-        <video ref={videoRef} className="camera-preview" playsInline muted />
-        <div className="camera-actions">
-          <button type="button" className="btn btn-primary" onClick={captureFrame}>
-            <Camera size={16} weight="bold" /> Capturar
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={stopCamera} aria-label="Cancelar câmera">
-            <X size={16} weight="bold" />
-          </button>
-        </div>
-      </div>
     )
   }
 
@@ -230,7 +185,6 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
         <ImageSquare size={14} weight="bold" /> Trocar
       </button>
 
-      {cameraError && <span className="photo-capture-error">{cameraError}</span>}
       <input
         ref={inputRef}
         type="file"
