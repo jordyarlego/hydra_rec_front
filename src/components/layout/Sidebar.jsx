@@ -9,6 +9,7 @@ import { WeatherOutlook } from '../weather/WeatherOutlook.jsx'
 import { NearbyReportsList } from '../reports/NearbyReportsList.jsx'
 import { ApacBanner } from '../risk/ApacBanner.jsx'
 import { OfficialNearbyCard } from '../risk/OfficialNearbyCard.jsx'
+import { WeekStatsCard } from '../risk/WeekStatsCard.jsx'
 import { ScoreExplain } from '../risk/ScoreExplain.jsx'
 import { soundMgr } from '../../lib/soundManager.js'
 import { SpeakerHigh, SpeakerSlash, Sun, Moon, X } from '@phosphor-icons/react'
@@ -155,6 +156,10 @@ export function Sidebar({
         <Section label="Ocorrências próximas" right={`${reports?.length || 0} reports · raio 2 km`}>
           <NearbyReportsList reports={reports} onConfirm={onConfirmReport} />
         </Section>
+
+        <Hairline />
+
+        <WeekStatsCard />
       </div>
 
       <div className="sidebar-footer">

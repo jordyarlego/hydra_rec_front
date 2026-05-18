@@ -5,8 +5,25 @@ import { BAIRRO_COORDS } from '../../data/bairro_coords.js'
 import { PONTOS_CRITICOS } from '../../data/pontos_criticos.js'
 import { getRiskColor } from '../../lib/riskColors.js'
 import { findBairroFeature, loadBairrosGeojson } from '../../lib/bairroGeo.js'
-import { CATEGORY_BY_ID } from '../../data/report_categories.js'
+import { CATEGORY_BY_ID, CATEGORIES } from '../../data/report_categories.js'
 import userAvatarMarker from '../../assets/user-avatar-marker-map.png'
+
+const CATEGORY_FILTER_LS_KEY = 'hr_cat_filter_v1'
+
+function loadHiddenCats() {
+  try {
+    const raw = localStorage.getItem(CATEGORY_FILTER_LS_KEY)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return new Set(Array.isArray(arr) ? arr : [])
+  } catch { return new Set() }
+}
+
+function saveHiddenCats(set) {
+  try {
+    localStorage.setItem(CATEGORY_FILTER_LS_KEY, JSON.stringify([...set]))
+  } catch { /* quota / privacidade — silencioso */ }
+}
 
 const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 const CARTO_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
@@ -90,6 +107,23 @@ export function HydraMap({
   const [showResolved, setShowResolved] = useState(true)
   const [showCriticos, setShowCriticos] = useState(true)
   const [showDC, setShowDC] = useState(false)
+  const [hiddenCats, setHiddenCats] = useState(() => loadHiddenCats())
+  const [catFilterOpen, setCatFilterOpen] = useState(false)
+
+  function toggleCategory(catId) {
+    setHiddenCats(prev => {
+      const next = new Set(prev)
+      if (next.has(catId)) next.delete(catId)
+      else next.add(catId)
+      saveHiddenCats(next)
+      return next
+    })
+  }
+
+  function showAllCategories() {
+    setHiddenCats(new Set())
+    saveHiddenCats(new Set())
+  }
   const [dcHotspots, setDcHotspots] = useState([])
   const [gpsPos, setGpsPos] = useState(null)
   const [bairrosGeojson, setBairrosGeojson] = useState(null)
@@ -259,6 +293,7 @@ export function HydraMap({
     for (const r of reports) {
       if (r.lat == null || r.lon == null) continue
       if (bairroFilter && r.bairro && r.bairro !== bairro) continue
+      if (hiddenCats.has(r.type)) continue   // chip OFF pra essa categoria
       L.marker([r.lat, r.lon], { icon: makeReportIcon(r) })
         .on('click', e => {
           if (e.originalEvent) L.DomEvent.stop(e.originalEvent)
@@ -268,7 +303,7 @@ export function HydraMap({
     }
     layersRef.current.reports = group
     if (showReports) group.addTo(mapRef.current)
-  }, [reports]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reports, hiddenCats]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!mapRef.current || !layersRef.current.reports) return
@@ -430,7 +465,56 @@ export function HydraMap({
             GPS
           </button>
         )}
+        <button
+          className={`map-layer-btn ${hiddenCats.size > 0 ? 'active' : ''}`}
+          onClick={() => setCatFilterOpen(v => !v)}
+          aria-pressed={catFilterOpen}
+          aria-expanded={catFilterOpen}
+          title="Filtrar pins por categoria"
+        >
+          <span className="layer-dot" style={{ background: '#94a3b8' }} />
+          Filtrar {hiddenCats.size > 0 && `(${CATEGORIES.length - hiddenCats.size}/${CATEGORIES.length})`}
+        </button>
       </div>
+
+      {catFilterOpen && (
+        <div
+          className="hydra-map-cat-filter"
+          role="region"
+          aria-label="Filtro de categorias"
+        >
+          <div className="hydra-map-cat-head">
+            <strong>Mostrar no mapa</strong>
+            {hiddenCats.size > 0 && (
+              <button
+                type="button"
+                className="hydra-map-cat-reset"
+                onClick={showAllCategories}
+              >
+                Mostrar todas
+              </button>
+            )}
+          </div>
+          <ul className="hydra-map-cat-list">
+            {CATEGORIES.map(cat => {
+              const visible = !hiddenCats.has(cat.id)
+              return (
+                <li key={cat.id}>
+                  <button
+                    type="button"
+                    className={`hydra-map-cat-chip ${visible ? 'on' : 'off'}`}
+                    onClick={() => toggleCategory(cat.id)}
+                    aria-pressed={visible}
+                  >
+                    <img src={cat.icon} alt="" aria-hidden="true" />
+                    <span>{cat.label}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

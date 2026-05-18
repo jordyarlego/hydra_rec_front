@@ -1924,6 +1924,99 @@ select option { background: #0f1118; color: #fff; }
 .map-layer-btn:not(.active) { opacity: .65; }
 .layer-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
+/* ── Filtro de categorias do mapa (chips) ─────────────────────────── */
+.hydra-map-cat-filter {
+  position: absolute;
+  top: 60px;
+  left: 18px;
+  z-index: 800;
+  width: min(320px, calc(100% - 36px));
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(13,14,17,.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: 0 12px 32px rgba(0,0,0,.4);
+}
+.map-light .hydra-map-cat-filter {
+  background: rgba(255,255,255,.96);
+  border-color: rgba(15,42,80,.08);
+  color: rgba(15,42,80,.85);
+}
+.hydra-map-cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: rgba(255,255,255,.85);
+}
+.map-light .hydra-map-cat-head { color: rgba(15,42,80,.85); }
+.hydra-map-cat-reset {
+  background: transparent;
+  border: none;
+  color: #6db8ff;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.hydra-map-cat-reset:hover { text-decoration: underline; }
+
+.hydra-map-cat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hydra-map-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px 5px 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.7);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .12s;
+}
+.hydra-map-cat-chip img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.92);
+  padding: 2px;
+  flex-shrink: 0;
+}
+.hydra-map-cat-chip.on {
+  background: rgba(109,184,255,.14);
+  border-color: rgba(109,184,255,.4);
+  color: rgba(255,255,255,.95);
+}
+.hydra-map-cat-chip.off {
+  opacity: .42;
+  text-decoration: line-through;
+}
+.hydra-map-cat-chip:hover { transform: translateY(-1px); }
+.map-light .hydra-map-cat-chip {
+  background: rgba(15,42,80,.04);
+  border-color: rgba(15,42,80,.08);
+  color: rgba(15,42,80,.75);
+}
+.map-light .hydra-map-cat-chip.on {
+  background: rgba(74,143,219,.14);
+  border-color: rgba(74,143,219,.4);
+  color: rgba(15,42,80,.95);
+}
+
 
 /* ────────────────────────────────────────────────
    17. Mobile drawer + nav
@@ -7187,6 +7280,217 @@ a:hover { color: #f5b347; }
   animation: none !important;
   transition: none !important;
 }
+
+/* ── Onboarding tour · 1ª visita ───────────────────────────────────── */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background: rgba(8, 12, 20, .72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: onb-fade .25s ease-out;
+}
+@keyframes onb-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.onboarding-card {
+  position: relative;
+  width: min(480px, 100%);
+  padding: 32px 28px 24px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20,30,48,.98) 0%, rgba(14,22,38,.98) 100%);
+  border: 1px solid rgba(109,184,255,.18);
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+  animation: onb-pop .35s cubic-bezier(.2,.9,.3,1.2);
+  color: rgba(255,255,255,.92);
+}
+.app-root.light .onboarding-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
+  border-color: rgba(74,143,219,.2);
+  color: rgba(15,42,80,.92);
+}
+@keyframes onb-pop {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.onboarding-skip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  border: none;
+  color: rgba(255,255,255,.65);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.onboarding-skip:hover { background: rgba(255,255,255,.12); }
+.app-root.light .onboarding-skip {
+  background: rgba(15,42,80,.06);
+  color: rgba(15,42,80,.7);
+}
+.onboarding-stepper {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.onboarding-dot {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.12);
+  transition: background .2s;
+}
+.onboarding-dot.active { background: #6db8ff; }
+.onboarding-dot.done   { background: rgba(109,184,255,.55); }
+.app-root.light .onboarding-dot { background: rgba(15,42,80,.1); }
+.app-root.light .onboarding-dot.active { background: #4a8fdb; }
+.app-root.light .onboarding-dot.done   { background: rgba(74,143,219,.55); }
+
+.onboarding-title {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.onboarding-body {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255,255,255,.75);
+}
+.app-root.light .onboarding-body { color: rgba(15,42,80,.75); }
+
+.onboarding-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.onboarding-btn-ghost,
+.onboarding-btn-skip,
+.onboarding-btn-primary {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .12s;
+  border: 1px solid transparent;
+}
+.onboarding-btn-ghost {
+  background: transparent;
+  color: rgba(255,255,255,.7);
+  border-color: rgba(255,255,255,.14);
+}
+.onboarding-btn-skip {
+  background: transparent;
+  color: rgba(255,255,255,.5);
+  margin-right: auto;
+}
+.onboarding-btn-skip:hover { color: rgba(255,255,255,.75); }
+.onboarding-btn-primary {
+  background: #6db8ff;
+  color: #0a1628;
+}
+.onboarding-btn-primary:hover {
+  background: #8ec6ff;
+  transform: translateY(-1px);
+}
+.app-root.light .onboarding-btn-ghost {
+  color: rgba(15,42,80,.7);
+  border-color: rgba(15,42,80,.14);
+}
+.app-root.light .onboarding-btn-skip {
+  color: rgba(15,42,80,.5);
+}
+.app-root.light .onboarding-btn-primary {
+  background: #4a8fdb;
+  color: #fff;
+}
+
+/* ── WeekStatsCard · transparência cívica ─────────────────────────── */
+.week-stats-card {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+}
+body.light .week-stats-card,
+.sidebar-wrap.light .week-stats-card {
+  background: rgba(15,42,80,.03);
+  border-color: rgba(15,42,80,.06);
+}
+.week-stats-head { margin-bottom: 8px; }
+.week-stats-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.5);
+}
+body.light .week-stats-title,
+.sidebar-wrap.light .week-stats-title { color: rgba(15,42,80,.55); }
+.week-stats-list {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.week-stats-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 0;
+}
+.week-stats-list strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255,255,255,.95);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+body.light .week-stats-list strong,
+.sidebar-wrap.light .week-stats-list strong { color: rgba(15,42,80,.95); }
+.week-stats-list span {
+  font-size: 10px;
+  color: rgba(255,255,255,.55);
+}
+body.light .week-stats-list span,
+.sidebar-wrap.light .week-stats-list span { color: rgba(15,42,80,.55); }
+.week-stats-green { color: #22c55e !important; }
+.week-stats-foot {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255,255,255,.08);
+  font-size: 10px;
+  color: rgba(255,255,255,.5);
+}
+body.light .week-stats-foot,
+.sidebar-wrap.light .week-stats-foot {
+  border-top-color: rgba(15,42,80,.08);
+  color: rgba(15,42,80,.55);
+}
+.week-stats-foot strong {
+  color: rgba(255,255,255,.85);
+  font-weight: 600;
+}
+body.light .week-stats-foot strong,
+.sidebar-wrap.light .week-stats-foot strong { color: rgba(15,42,80,.85); }
 
 /* ── Pin verde: tickets resolvidos pela prefeitura (G3) ───────────── */
 .hr-resolved-pin {

@@ -15,6 +15,7 @@ import { MobileNav }     from './components/layout/MobileNav.jsx'
 import { QuickReportSheet } from './components/reports/QuickReportSheet.jsx'
 import { ReportPinPopup } from './components/reports/ReportPinPopup.jsx'
 import { SchemaWarning } from './components/common/SchemaWarning.jsx'
+import { OnboardingTour } from './components/onboarding/OnboardingTour.jsx'
 import { useToast } from './components/common/Toast.jsx'
 import { api } from './lib/api.js'
 
@@ -288,6 +289,7 @@ export default function App() {
     <div className={`app-root${isLight ? ' light' : ''}`} data-theme={theme}>
       <a href="#main" className="skip-link">Ir para conteúdo</a>
       <SchemaWarning />
+      <OnboardingTour />
 
       {/* Overlay backdrop — desktop + mobile quando sidebar aberta */}
       {sidebarOpen && (
