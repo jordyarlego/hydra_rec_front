@@ -3,7 +3,7 @@ import L from 'leaflet'
 import { adminFetchJson } from '../../lib/adminFetch.js'
 import { useWebSocket } from '../../hooks/useWebSocket.js'
 import { CATEGORY_BY_ID } from '../../data/report_categories.js'
-import { ArrowClockwise, ChartLineUp, MapPin, Siren, Target, Warning } from '@phosphor-icons/react'
+import { ArrowClockwise, ChartLineUp, MapPin, Siren, Target, Warning, Question } from '@phosphor-icons/react'
 
 const RECIFE_CENTER = [-8.0522, -34.9286]
 
@@ -118,6 +118,9 @@ function OpsMap({ priorities = [], hotspots = [] }) {
       if (!report.lat || !report.lon) return
       const result = report.priority_result || {}
       const color = PRIORITY_COLOR[result.priority] || PRIORITY_COLOR.media
+      const imgHtml = report.photo_url
+        ? `<br><img src="${report.photo_url}" alt="Foto da ocorrência" class="admin-map-popup-img" style="width: 140px; height: 90px; object-fit: cover; border-radius: 6px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.15);" />`
+        : ''
       L.circleMarker([report.lat, report.lon], {
         radius: 8,
         color: '#ffffff',
@@ -128,7 +131,8 @@ function OpsMap({ priorities = [], hotspots = [] }) {
         .bindPopup(
           `<strong>${categoryLabel(report.type)}</strong><br>` +
           `${report.bairro || 'Bairro nao informado'}<br>` +
-          `Prioridade: ${priorityLabel(result.priority)} (${result.score ?? 0})`
+          `Prioridade: ${priorityLabel(result.priority)} (${result.score ?? 0})` +
+          imgHtml
         )
         .addTo(group)
     })
@@ -175,6 +179,7 @@ export function AdminOpsDashboard() {
   const [error, setError] = useState(null)
   const [warnings, setWarnings] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
+  const [showHelp, setShowHelp] = useState(false)
 
   const load = useCallback(async () => {
     setError(null)
@@ -248,10 +253,21 @@ export function AdminOpsDashboard() {
           <h1>Operação Recife</h1>
           <p>Mapa central com reports priorizados, hotspots oficiais, tendências e recomendações acionáveis.</p>
         </div>
-        <button type="button" className="btn btn-ghost" onClick={load} disabled={loading}>
-          <ArrowClockwise size={15} weight="bold" />
-          Atualizar
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className={`btn ${showHelp ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setShowHelp(!showHelp)}
+            title="Como ler este painel"
+          >
+            <Question size={15} weight="bold" />
+            Como ler
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={load} disabled={loading}>
+            <ArrowClockwise size={15} weight="bold" />
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -297,7 +313,15 @@ export function AdminOpsDashboard() {
 
           <div className="admin-ops-panel">
             <div className="admin-ops-panel-head">
-              <h2>Recomendações</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                Recomendações
+                <span
+                  title="Ações sugeridas automaticamente quando há picos hiperlocais de ocorrências (crescimento de 3+ em 24h) ou um aumento geral de 50%+ na cidade."
+                  style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', color: 'rgba(255,255,255,0.45)' }}
+                >
+                  <Question size={14} weight="bold" />
+                </span>
+              </h2>
               <span>{recommendations.length}</span>
             </div>
             {narration && <p className="admin-ops-narration">{narration}</p>}
@@ -320,20 +344,22 @@ export function AdminOpsDashboard() {
       </div>
 
       <div className="admin-ops-lower">
-        <div className="admin-ops-panel admin-ops-help">
-          <div className="admin-ops-panel-head">
-            <h2>Como ler este painel</h2>
-            <span>glossário</span>
+        {showHelp && (
+          <div className="admin-ops-panel admin-ops-help">
+            <div className="admin-ops-panel-head">
+              <h2>Como ler este painel</h2>
+              <span>glossário</span>
+            </div>
+            <div className="admin-ops-help-grid">
+              {OPS_CONCEPTS.map(item => (
+                <article key={item.title}>
+                  <strong>{item.title}</strong>
+                  <p>{item.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="admin-ops-help-grid">
-            {OPS_CONCEPTS.map(item => (
-              <article key={item.title}>
-                <strong>{item.title}</strong>
-                <p>{item.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
+        )}
 
         <div className="admin-ops-panel">
           <div className="admin-ops-panel-head">
