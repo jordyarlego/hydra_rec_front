@@ -14,16 +14,16 @@
   --font-body:    'Outfit', system-ui, -apple-system, sans-serif;
   --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
-  --text-2xs:  10px;
-  --text-xs:   11px;
-  --text-sm:   13px;
-  --text-base: 14px;
-  --text-md:   15px;
-  --text-lg:   17px;
-  --text-xl:   20px;
-  --text-2xl:  24px;
-  --text-3xl:  32px;
-  --text-4xl:  44px;
+  --text-2xs:  11px;
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-md:   17px;
+  --text-lg:   19px;
+  --text-xl:   22px;
+  --text-2xl:  26px;
+  --text-3xl:  34px;
+  --text-4xl:  46px;
   --text-5xl:  64px;
 
   /* ─────────── Spacing ─────────── */
