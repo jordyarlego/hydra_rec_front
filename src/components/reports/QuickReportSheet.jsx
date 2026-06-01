@@ -22,12 +22,6 @@ import { MapPin, PaperPlaneTilt, X, Check, Robot, CloudRain } from '@phosphor-ic
    ════════════════════════════════════════════════════ */
 
 const MAX_DESCRIPTION = 140
-const SEVERITIES = [
-  ['leve',     'Leve'],
-  ['moderado', 'Moderado'],
-  ['grave',    'Grave'],
-]
-const SEV_BY_CATEGORY = { leve: 'leve', moderado: 'moderado', alto: 'grave', severo: 'grave' }
 
 function inferCategory(weather) {
   const rain = Number(weather?.rain_1h_mm ?? weather?.rain_24h_mm ?? 0)
@@ -58,8 +52,6 @@ export function QuickReportSheet({
 }) {
   const [tipo, setTipo] = useState('alagamento')
   const [tipoLocked, setTipoLocked] = useState(false)
-  const [severidade, setSeveridade] = useState('moderado')
-  const [severidadeLocked, setSeveridadeLocked] = useState(false)
   const [descricao, setDescricao] = useState('')
   const [photo, setPhoto] = useState(null)
   const [weatherHint, setWeatherHint] = useState(null)
@@ -83,8 +75,8 @@ export function QuickReportSheet({
     if (!open) return
     setDescricao(''); setPhoto(null); setError(null)
     setWeatherHint(null); setAiSuggestion(null); setAiPulseKey(0)
-    setTipo('alagamento'); setSeveridade('moderado')
-    setTipoLocked(false); setSeveridadeLocked(false)
+    setTipo('alagamento')
+    setTipoLocked(false)
     setSubmitting(false); setDone(false)
 
     let cancelled = false
@@ -96,7 +88,6 @@ export function QuickReportSheet({
           if (data.suggested_category && CATEGORY_BY_ID[data.suggested_category] && !tipoLocked) {
             const cat = CATEGORY_BY_ID[data.suggested_category]
             setTipo(cat.id)
-            if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
             setAiSuggestion({ category: cat.id, source: 'rain' })
             setAiPulseKey(k => k + 1)
           } else {
@@ -105,7 +96,6 @@ export function QuickReportSheet({
             if (suggested && !tipoLocked) {
               const cat = CATEGORY_BY_ID[suggested]
               setTipo(cat.id)
-              if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
               setAiSuggestion({ category: cat.id, source: 'rain' })
               setAiPulseKey(k => k + 1)
             }
@@ -126,12 +116,6 @@ export function QuickReportSheet({
     setTipo(cat.id)
     setTipoLocked(true)
     setAiSuggestion(null)
-    if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
-  }
-
-  const handleSeverity = (v) => {
-    setSeveridade(v)
-    setSeveridadeLocked(true)
   }
 
   // Foto + AI: dispara animação na tile escolhida
@@ -143,7 +127,6 @@ export function QuickReportSheet({
       setTipo(cat.id)
       setAiPulseKey(k => k + 1)
     }
-    if (!severidadeLocked) setSeveridade(SEV_BY_CATEGORY[cat.sev] || 'moderado')
   }
 
   const handleSubmit = async (e) => {
@@ -153,7 +136,6 @@ export function QuickReportSheet({
     try {
       const form = new FormData()
       form.append('tipo', tipo)
-      form.append('severidade', severidade)
       form.append('lat', String(reportLat))
       form.append('lon', String(reportLon))
       form.append('user_lat', String(userLat))
@@ -245,27 +227,7 @@ export function QuickReportSheet({
             />
           </div>
 
-          {/* 4. SEVERIDADE */}
-          <div className="form-field">
-            <label>O quão grave parece?</label>
-            <div className="severity-row">
-              {SEVERITIES.map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`severity-pill ${severidade === value ? 'active' : ''}`}
-                  data-sev={value}
-                  onClick={() => handleSeverity(value)}
-                  aria-pressed={severidade === value}
-                >
-                  <span className="dot" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. CONTEXTO APAC */}
+          {/* 4. CONTEXTO APAC */}
           {weatherHint && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
