@@ -99,17 +99,6 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
     inputRef.current?.click()
   }
 
-  /* Versão sem capture pra escolher da galeria explicitamente. */
-  function openPicker() {
-    const el = inputRef.current
-    if (!el) return
-    const prev = el.getAttribute('capture')
-    el.removeAttribute('capture')
-    el.click()
-    // Restaura capture pro próximo "abrir câmera"
-    setTimeout(() => { if (prev) el.setAttribute('capture', prev) }, 200)
-  }
-
   // Mostra IA quando: tem descrição (mesmo se ai_used=false do fallback)
   const showAiLine = previewUrl && (aiLoading || aiAnalysis?.description || aiError)
   const aiCat = aiAnalysis?.suggested_type && CATEGORY_BY_ID[aiAnalysis.suggested_type]
@@ -123,16 +112,9 @@ export function PhotoCapture({ file, onChange, onAiSuggest }) {
             <Camera size={36} weight="bold" aria-hidden="true" />
           </span>
           <strong>Adicionar foto</strong>
-          <small>Toque pra abrir a câmera</small>
+          <small>Foto ao vivo pela câmera — ajuda a IA a validar</small>
           <button type="button" className="photo-empty-main" onClick={openCamera}>
             Abrir câmera
-          </button>
-          <button
-            type="button"
-            className="photo-empty-alt"
-            onClick={(e) => { e.stopPropagation(); openPicker() }}
-          >
-            <ImageSquare size={12} weight="bold" /> ou escolher da galeria
           </button>
         </div>
         <input
