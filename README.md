@@ -58,6 +58,7 @@ front_end_hydrarec/
 │   │   └── admin/                # 10 componentes do painel admin
 │   │       ├── AdminLogin.jsx
 │   │       ├── AdminLayout.jsx
+│   │       ├── AdminOpsDashboard.jsx      # Mapa Central: analytics + hotspots + prioridades
 │   │       ├── AdminReportsTable.jsx       # lista com 3 cards-bucket (Triagem v2)
 │   │       ├── AdminReportDetail.jsx       # painel direito, 3 botões de decisão
 │   │       ├── AdminTickets.jsx            # Kanban 4 colunas (Triagem v2)
@@ -145,7 +146,7 @@ front_end_hydrarec/
 
 ---
 
-## 4. Fluxo admin (Triagem v2)
+## 4. Fluxo admin
 
 ```
 /admin → main.jsx detecta path → carrega AdminPage (lazy)
@@ -154,10 +155,23 @@ AdminPage:
   • useAuth → escuta evento hydrarec-auth-expired
   • Se sem sessão: AdminLogin (Supabase signIn)
   • Se sem role admin: tela "Sem permissão"
-  • Senão: AdminLayout com 4 abas
+  • Senão: AdminLayout com navegação lateral
 
 Abas:
-  1. /admin/reports  → AdminReportsTable + AdminReportDetail
+  1. Mapa Central → AdminOpsDashboard
+     • Primeira tela do admin
+     • Mapa Leaflet com reports priorizados e hotspots oficiais
+     • KPIs:
+        - Reports 24h: volume atual de reports
+        - Tendências: categorias/bairros subindo contra a janela anterior
+        - Alta prioridade: reports urgentes/alta prioridade
+        - Hotspots: recorrências vindas das bases oficiais
+     • Recomendações:
+        - Regras determinísticas do backend
+        - IA só narra a decisão; não inventa prioridade
+     • Se analytics/hotspots falharem, mostra aviso amarelo e mantém a tela útil
+
+  2. /admin/reports  → AdminReportsTable + AdminReportDetail
      • 3 cards-bucket no topo: Precisa de você / Filtrados / Auto-validados
      • Pill colorido de veredito por linha
      • Detalhe lateral com:
@@ -169,13 +183,14 @@ Abas:
         - Rejeitar → radio buttons (duplicado | foto inválida | fora de escopo | trote)
      • BatchApproveCard quando bucket = auto_validado
 
-  2. /admin/tickets  → AdminTickets (Kanban)
+  3. /admin/tickets  → AdminTickets (Kanban)
      • 4 colunas: Aberto | Em atendimento | Resolvido | Fechado
      • Card pisca quando passa SLA
      • Borda lateral colorida por prioridade
      • Botão "→ próxima coluna" pra mover
+     • Despacho abre o e-mail pronto e já marca o chamado como encaminhado
 
-  3. /admin/metrics  → AdminMetrics
+  4. /admin/metrics  → AdminMetrics
      • KPIs últimas 24h, pendentes, validados, resolvidos
      • Top bairros (barras horizontais)
 
@@ -209,6 +224,7 @@ lib/adminFetch.js
   quando POST falha; flusha ao voltar online
 - **Auto-update**: SW checa update a cada 15min + ao focar a aba
 - **Push Notifications**: VAPID via `usePushNotifications.js` + `PushBell.jsx`
+- **Localização opcional no push**: ao assinar notificações, o hook tenta anexar `lat/lon`. Se o usuário negar GPS, a inscrição continua funcionando para alertas gerais e status do próprio ticket; só o convite de validação por proximidade fica indisponível.
 
 ---
 
@@ -280,7 +296,6 @@ npm run build      # sai em ../back_end_hydrarec/static/
 ## 10. Roadmap
 
 Fases 1-11 entregues. **Triagem v2** (2026-05-16) — Kanban admin,
-3 buckets IA, refresh token, veredito visual. Backlog do próximo
-ciclo (correções UX, copy didática, kanban Trello-like, IA prioriza
-pela foto) em `docs/superpowers/specs/2026-05-16-feedback-ciclo-2-backlog.md`
-no monorepo raiz.
+3 buckets IA, refresh token, veredito visual. **Ciclo 3** entregue:
+Mapa Central admin, recomendações analíticas, validação por timer e
+push de validação por proximidade quando houver GPS na subscription.

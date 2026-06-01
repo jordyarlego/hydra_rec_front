@@ -75,11 +75,18 @@ export function usePushNotifications() {
         applicationServerKey: _urlBase64ToUint8Array(key),
       })
 
-      // Step 5: enviar subscription ao backend
+      // Step 5: enviar subscription ao backend, com localização opcional para
+      // alertas de validação por proximidade.
+      const subscriptionPayload = sub.toJSON()
+      const position = await _tryCurrentPosition()
+      if (position) {
+        subscriptionPayload.lat = position.lat
+        subscriptionPayload.lon = position.lon
+      }
       const saveRes = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub.toJSON()),
+        body: JSON.stringify(subscriptionPayload),
       })
       if (!saveRes.ok) {
         setError(`Backend rejeitou a inscrição (HTTP ${saveRes.status}).`)
@@ -124,6 +131,25 @@ export function usePushNotifications() {
   }, [supported])
 
   return { status, error, loading, subscribe, unsubscribe, supported }
+}
+
+async function _tryCurrentPosition() {
+  if (!('geolocation' in navigator)) return null
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 5 * 60 * 1000,
+      })
+    })
+    return {
+      lat: pos.coords.latitude,
+      lon: pos.coords.longitude,
+    }
+  } catch {
+    return null
+  }
 }
 
 function _urlBase64ToUint8Array(base64String) {

@@ -6,6 +6,7 @@ import { AdminMobile } from '../components/admin/AdminMobile.jsx'
 import { AdminReportsTable } from '../components/admin/AdminReportsTable.jsx'
 import { AdminReportDetail } from '../components/admin/AdminReportDetail.jsx'
 import { AdminTickets } from '../components/admin/AdminTickets.jsx'
+import { AdminOpsDashboard } from '../components/admin/AdminOpsDashboard.jsx'
 import { AdminMetrics } from '../components/admin/AdminMetrics.jsx'
 import OfficialDataStatus from '../components/admin/OfficialDataStatus.jsx'
 import OfficialDataCoverage from '../components/admin/OfficialDataCoverage.jsx'
@@ -23,7 +24,7 @@ function useIsMobile(breakpoint = 720) {
 
 function currentSection() {
   const part = window.location.pathname.split('/')[2]
-  return part || 'reports'
+  return part || 'ops'
 }
 
 export function AdminPage() {
@@ -94,6 +95,7 @@ export function AdminPage() {
       onSignOut={signOut}
       user={{ name: user?.email || 'Administrador', role: 'admin' }}
     >
+      {section === 'ops' && <AdminOpsDashboard />}
       {section === 'reports' && (
         <>
           <AdminReportsTable onSelect={setSelectedReport} selectedId={selectedReport} />

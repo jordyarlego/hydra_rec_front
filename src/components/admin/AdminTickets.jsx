@@ -171,7 +171,7 @@ export function AdminTickets() {
         <div>
           <h1>Chamados em andamento</h1>
           <p>
-            Quadro estilo Trello. Arraste o chamado pra próxima coluna conforme o atendimento avança.
+            Quadro operacional de chamados. O despacho abre o e-mail pronto e já move o chamado para encaminhado.
             Cards <strong>piscam vermelho</strong> quando passa do prazo esperado (Urgente: 2h · Alta: 24h · Média: 72h · Baixa: 7 dias).
             Arquivados ficam ocultos no fim — chamados resolvidos arquivam sozinhos depois de 7 dias.
           </p>

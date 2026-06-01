@@ -18,6 +18,7 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState(false)
   const [marking, setMarking] = useState(false)
+  const [opened, setOpened] = useState(false)
 
   useEffect(() => {
     if (!ticketId) return
@@ -33,6 +34,7 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
     if (!draft) return
     try {
       await navigator.clipboard.writeText(`${draft.subject}\n\n${draft.body}`)
+      setOpened(true)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
@@ -58,6 +60,13 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
     }
   }
 
+  async function openAndMark() {
+    if (!draft || marking) return
+    setOpened(true)
+    window.location.href = draft.mailto
+    await markDispatched()
+  }
+
   if (!ticketId) return null
 
   return (
@@ -79,11 +88,8 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
         {draft && (
           <>
             <div className="dispatch-help">
-              <p>
-                A integração automática com os órgãos ainda não está pronta. <strong>Por enquanto</strong>,
-                você encaminha manualmente: abre seu cliente de e-mail (ou copia o texto) e envia pro canal certo.
-                Depois clica em <em>"Já encaminhei"</em> pra mover o chamado pra próxima coluna.
-              </p>
+              <strong>Destino sugerido: {draft.to}</strong>
+              <span>{draft.subject}</span>
             </div>
 
             <div className="dispatch-contacts">
@@ -96,6 +102,16 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
                 <span>{draft.phone}</span>
               </a>
             </div>
+
+            <button
+              type="button"
+              className="btn-primary dispatch-primary-action"
+              onClick={openAndMark}
+              disabled={marking}
+            >
+              <Envelope size={15} weight="bold" aria-hidden="true" />
+              {marking ? 'Abrindo e registrando…' : 'Abrir e marcar encaminhado'}
+            </button>
 
             <label className="form-field">
               <span className="form-label">Assunto</span>
@@ -112,6 +128,7 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
                 className="btn-secondary"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => setOpened(true)}
               >
                 <Envelope size={14} weight="bold" aria-hidden="true" />
                 Abrir no e-mail
@@ -124,7 +141,8 @@ export function DispatchTicketModal({ ticketId, onClose, onDispatched }) {
                 type="button"
                 className="btn-primary"
                 onClick={markDispatched}
-                disabled={marking}
+                disabled={marking || !opened}
+                title={!opened ? 'Abra ou copie o encaminhamento antes de marcar.' : undefined}
               >
                 <CheckCircle size={14} weight="bold" aria-hidden="true" />
                 {marking ? 'Salvando…' : 'Já encaminhei'}

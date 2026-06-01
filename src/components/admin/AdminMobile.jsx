@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { HydraLogo } from '../effects/HydraLogo.jsx'
 import { useTheme } from '../../hooks/useTheme.js'
-import { Siren, Ticket, ChartBar, Database, Sun, Moon, SignOut, List, ArrowsClockwise, ArrowRight, MagnifyingGlass, Warning, Buildings } from '@phosphor-icons/react'
+import { Siren, Ticket, ChartBar, Database, Sun, Moon, SignOut, List, ArrowsClockwise, MapTrifold } from '@phosphor-icons/react'
 import { AdminReportsTable } from './AdminReportsTable.jsx'
 import { AdminReportDetail } from './AdminReportDetail.jsx'
 import { AdminTickets } from './AdminTickets.jsx'
+import { AdminOpsDashboard } from './AdminOpsDashboard.jsx'
 import { AdminMetrics } from './AdminMetrics.jsx'
 
 /* ════════════════════════════════════════════════════
@@ -28,6 +29,8 @@ import { AdminMetrics } from './AdminMetrics.jsx'
    ════════════════════════════════════════════════════ */
 
 const NAV = [
+  { kind: 'section', label: 'OPERAÇÃO' },
+  { id: 'ops',       label: 'Mapa central',   icon: MapTrifold },
   { kind: 'section', label: 'TRIAGEM' },
   { id: 'reports',   label: 'Reports',        icon: Siren },
   { id: 'tickets',   label: 'Chamados',       icon: Ticket },
@@ -37,6 +40,7 @@ const NAV = [
 ]
 
 const SECTION_LABEL = {
+  ops: 'Operação',
   reports: 'Triagem',
   tickets: 'Chamados',
   metrics: 'Métricas',
@@ -44,7 +48,7 @@ const SECTION_LABEL = {
 }
 
 export function AdminMobile({ user, onSignOut, counts = {} }) {
-  const [section, setSection] = useState('reports')
+  const [section, setSection] = useState('ops')
   const [detailId, setDetailId] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
   const { theme, toggle } = useTheme()
@@ -65,6 +69,7 @@ export function AdminMobile({ user, onSignOut, counts = {} }) {
       </header>
 
       <div className="admin-mobile-content scroll-y">
+        {section === 'ops' && <AdminOpsDashboard />}
         {section === 'reports' && (
           <AdminReportsTable onSelect={setDetailId} selectedId={detailId} />
         )}

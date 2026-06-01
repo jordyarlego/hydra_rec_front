@@ -1,6 +1,6 @@
 import { HydraLogo } from '../effects/HydraLogo.jsx'
 import { useTheme } from '../../hooks/useTheme.js'
-import { Siren, Ticket, ChartBar, Database, Sun, Moon, SignOut } from '@phosphor-icons/react'
+import { Siren, Ticket, ChartBar, Database, Sun, Moon, SignOut, MapTrifold } from '@phosphor-icons/react'
 
 /* ════════════════════════════════════════════════════
    AdminLayout v3 — sidebar Linear/Notion fixa 240px.
@@ -8,6 +8,8 @@ import { Siren, Ticket, ChartBar, Database, Sun, Moon, SignOut } from '@phosphor
    ════════════════════════════════════════════════════ */
 
 const NAV = [
+  { kind: 'section', label: 'OPERAÇÃO' },
+  { id: 'ops',       label: 'Mapa central',   icon: MapTrifold },
   { kind: 'section', label: 'TRIAGEM' },
   { id: 'reports',   label: 'Reports',        icon: Siren,    countKey: 'pendingReports' },
   { id: 'tickets',   label: 'Chamados',       icon: Ticket,   countKey: 'openTickets' },
