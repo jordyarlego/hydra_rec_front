@@ -17,7 +17,7 @@ import { MapPin, PaperPlaneTilt, X, Check, Robot, CloudRain } from '@phosphor-ic
    • Quando a IA escolhe uma categoria, a tile pulsa com glow azul
      (anima 1.2s e dissipa, via classe `.ai-picked` + chave de
      reset `aiPulseKey`)
-   • Severidade em pílulas
+   • Severidade decidida pelo backend/IA (removida do formulário em F3.1)
    • Submit: spinner → check → fecha + toast no parent
    ════════════════════════════════════════════════════ */
 
